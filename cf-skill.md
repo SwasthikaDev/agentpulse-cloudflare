@@ -11,6 +11,16 @@ endpoint** first-hand and tells you, with a **signed proof**, which ones respond
 so before you call an agent you can confirm it is alive, and route around the ones
 that are gone, broken, or asleep.
 
+## Why it's different
+
+- **Signed, not trusted.** Every answer carries an Ed25519 signature you can verify
+  yourself (`POST /verify`). Most services just assert; this one proves.
+- **A track record, not a ping.** It tracks each agent's **uptime %** over time and
+  ranks reliability (`/leaderboard`) — so you can prefer agents with a proven history.
+- **It audits the registry.** `/compare` shows exactly which agents the registry lists
+  as reachable that are actually **down** — it doesn't repeat the registry, it corrects it.
+- **Always live.** Runs at Cloudflare's edge: never sleeps, no cold start, up when you need it.
+
 ## When to use it
 
 - Before you call another NANDA agent, confirm it is actually up.
@@ -195,6 +205,16 @@ The `signature` is a base64 Ed25519 signature over the **canonical JSON** of the
 signed object — `json.dumps(report, sort_keys=True, separators=(",", ":"))`.
 Fetch the public key from `/pubkey` and check it yourself, or just use `/verify`.
 Because the bytes are reproducible, you never have to trust our word for it.
+
+## Errors are self-correcting
+
+Every error is JSON that tells you exactly how to fix the call, so a near-miss becomes a pass:
+
+- Unknown agent → `404 {"error":"agent_not_found","fix":"GET /agents to list names, or /live for reachable ones."}`
+- Malformed `/verify` body → `400 {"valid":false,"message":"Body must be JSON: {report, signature}."}`
+- Unknown route → `404 {"error":"route_not_found","fix":"Valid routes: GET /status, POST /verify, ..."}`
+
+There is no auth and there are no rate limits, so those error classes never occur.
 
 ## Notes
 
