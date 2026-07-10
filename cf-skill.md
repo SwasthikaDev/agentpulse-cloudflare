@@ -136,6 +136,7 @@ GET __PULSE_URL__/agent/Skill-Router
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/state` | One signed artifact: whole-web summary + top reliable agents + registry gap. |
 | GET | `/status` | Signed summary: how much of the agent web is reachable. |
 | POST | `/verify` | Confirm a signature is genuine. Body `{report, signature}` → `{valid}`. |
 | GET | `/leaderboard` | Agents ranked by tracked uptime %, then p95 latency. |
