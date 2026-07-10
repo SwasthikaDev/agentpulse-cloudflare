@@ -90,11 +90,11 @@ curl -s $BASE/state
 # 2. Is one specific agent alive? (a signed attestation)
 curl -s $BASE/agent/Skill-Router
 
-# 3. SUCCESS SIGNAL — prove a signed report is genuine and untampered:
-curl -s $BASE/status \
-  | python3 -c "import sys,json;d=json.load(sys.stdin);print(json.dumps({'report':d['report'],'signature':d['signature']}))" \
-  | curl -s -X POST $BASE/verify -H 'Content-Type: application/json' -d @-
-# Expected: {"valid": true, "message": "Signature is a genuine, unaltered CipherWatch attestation."}
+# 3. SUCCESS SIGNAL — prove a signed report is genuine and untampered.
+#    /status already returns {report, signature, ...} and /verify reads exactly
+#    those two fields, so you can pipe it straight through — pure curl, nothing else:
+curl -s $BASE/status | curl -s -X POST $BASE/verify -H 'Content-Type: application/json' -d @-
+# Expected: {"valid": true, "algorithm": "Ed25519", "message": "...genuine, unaltered CipherWatch attestation..."}
 ```
 
 **You have succeeded when step 3 prints `"valid": true`.** To see the proof is real,
