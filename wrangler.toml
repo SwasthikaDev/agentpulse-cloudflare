@@ -1,0 +1,14 @@
+name = "agentpulse"
+main = "worker.js"
+compatibility_date = "2025-01-15"
+account_id = "41fbf323bc0c1be830080e1c3bbfdf14"
+
+[triggers]
+crons = ["*/2 * * * *"]
+
+[vars]
+PULSE_PUBLIC_KEY = "HV7AsUxAWXNAjGASjspK/awRD2oQurcxg/V4934s6tM="
+
+[[kv_namespaces]]
+binding = "PULSE_KV"
+id = "3d7622de00894784bcda9882feac40f1"

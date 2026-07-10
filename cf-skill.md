@@ -1,0 +1,126 @@
+# AgentPulse — uptime for the agent web
+
+**Base URL:** `__PULSE_URL__`
+**Auth:** none. **Content-Type:** JSON. Every answer is Ed25519-signed so you can verify it.
+
+## What this does (one line)
+
+The NANDA registry lists many agents, but it does not tell you which ones are
+actually working right now. AgentPulse probes every registered agent's **real
+endpoint** first-hand and tells you, with a **signed proof**, which ones respond —
+so before you call an agent you can confirm it is alive, and route around the ones
+that are gone, broken, or asleep.
+
+## When to use it
+
+- Before you call another NANDA agent, confirm it is actually up.
+- When you have candidate agents and want only the live ones to choose from.
+- When you need a tamper-proof, independently-verifiable statement of liveness.
+
+## Quick start (do this first)
+
+1. **Get the overall picture** — one GET, no body:
+
+   ```
+   GET __PULSE_URL__/status
+   ```
+
+   Returns a signed report:
+
+   ```json
+   {
+     "report": {
+       "service": "agentpulse", "checked_at": 1752000000,
+       "total": 131, "reachable": 115, "unreachable": 12, "unverifiable": 4
+     },
+     "headline": "115 of 131 registered agents are reachable right now; 12% are not.",
+     "signature": "<base64 Ed25519 signature over `report`>",
+     "pubkey": "<base64 public key>",
+     "verify": "POST {report, signature} to /verify, or verify locally with /pubkey."
+   }
+   ```
+
+2. **Confirm the answer is genuine (the success signal)** — send the `report` and
+   `signature` back to `/verify`:
+
+   ```
+   POST __PULSE_URL__/verify
+   Content-Type: application/json
+
+   { "report": { ...the report object... }, "signature": "<the signature>" }
+   ```
+
+   A correct, unaltered answer returns:
+
+   ```json
+   { "valid": true, "message": "Signature is a genuine, unaltered AgentPulse attestation." }
+   ```
+
+   **`"valid": true` is your success signal.** It proves the liveness data really
+   came from AgentPulse and was not tampered with. (Change one number and re-post
+   it: you will get `"valid": false`.)
+
+## Get only the live agents
+
+```
+GET __PULSE_URL__/live
+```
+
+```json
+{ "count": 115, "checked_at": 1752000000,
+  "agents": [ { "name": "Skill-Router", "url": "https://...", "latency_ms": 180 }, ... ] }
+```
+
+## Check one specific agent
+
+Pass an agent's **name or id** (as in the registry):
+
+```
+GET __PULSE_URL__/agent/Skill-Router
+```
+
+```json
+{
+  "attestation": {
+    "service": "agentpulse", "name": "Skill-Router", "url": "https://.../find",
+    "reachable": true, "latency_ms": 180, "http_status": 405, "checked_at": 1752000000
+  },
+  "signature": "<base64>", "pubkey": "<base64>",
+  "verify": "POST {report: attestation, signature} to /verify."
+}
+```
+
+## Full endpoint reference
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/status` | Signed summary: how much of the agent web is reachable. |
+| POST | `/verify` | Confirm a signature is genuine. Body `{report, signature}` → `{valid}`. |
+| GET | `/live` | Only the agents reachable right now (for routing). |
+| GET | `/agents` | Every registered agent with its current reachability. |
+| GET | `/agent/{id or name}` | Signed liveness attestation for one agent. |
+| GET | `/pubkey` | The Ed25519 public key + how to verify locally. |
+| POST | `/refresh` | Probe the next batch of agents now. |
+| GET | `/health` | Liveness of this service. |
+| GET | `/` | Human-readable live status board. |
+
+## How reachability is decided
+
+AgentPulse makes one GET to each agent's declared endpoint and classifies it the
+way a real uptime monitor would:
+
+- **reachable** — `2xx`/`3xx`, or `401`/`403`/`405` (it is there; may need auth or a POST)
+- **not reachable** — `404`, any `5xx`, or a timeout / connection error (gone, broken, or asleep)
+- **unverifiable** — the registry entry declared no endpoint to probe
+
+## How verification works (for full independence)
+
+The `signature` is a base64 Ed25519 signature over the **canonical JSON** of the
+signed object — `json.dumps(report, sort_keys=True, separators=(",", ":"))`.
+Fetch the public key from `/pubkey` and check it yourself, or just use `/verify`.
+Because the bytes are reproducible, you never have to trust our word for it.
+
+## Notes
+
+- **No authentication, no rate limits, no keys to manage.**
+- Runs on Cloudflare Workers at the edge; the liveness cache is refreshed on a schedule, so calls are fast.
