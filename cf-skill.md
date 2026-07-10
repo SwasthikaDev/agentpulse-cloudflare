@@ -66,6 +66,29 @@ that are gone, broken, or asleep.
    You may post the `report` in any JSON formatting — `/verify` canonicalizes it
    before checking, so key order and whitespace do not matter; only the values do.
 
+## Copy-paste test — run this top to bottom
+
+Each line feeds the next; the last one prints your success signal.
+
+```bash
+BASE=__PULSE_URL__
+
+# 1. Signed snapshot of the whole agent web
+curl -s $BASE/state
+
+# 2. Is one specific agent alive? (a signed attestation)
+curl -s $BASE/agent/Skill-Router
+
+# 3. SUCCESS SIGNAL — prove a signed report is genuine and untampered:
+curl -s $BASE/status \
+  | python3 -c "import sys,json;d=json.load(sys.stdin);print(json.dumps({'report':d['report'],'signature':d['signature']}))" \
+  | curl -s -X POST $BASE/verify -H 'Content-Type: application/json' -d @-
+# Expected: {"valid": true, "message": "Signature is a genuine, unaltered AgentPulse attestation."}
+```
+
+**You have succeeded when step 3 prints `"valid": true`.** To see the proof is real,
+change any number in the report before posting it and step 3 will print `"valid": false`.
+
 ## Most reliable agents (leaderboard)
 
 AgentPulse tracks each agent's uptime over time, so you can prefer the ones with a
