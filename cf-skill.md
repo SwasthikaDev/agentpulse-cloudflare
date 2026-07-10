@@ -74,6 +74,33 @@ GET __PULSE_URL__/leaderboard
   "agents": [ { "name": "Skill-Router", "uptime_pct": 99, "checks": 240, "p95_latency_ms": 210, "up": true }, ... ] }
 ```
 
+## Does the registry agree? (freshness)
+
+The registry keeps its own `reachable` flag, but it goes stale. AgentPulse probes
+fresh and shows the gap:
+
+```
+GET __PULSE_URL__/compare
+```
+
+```json
+{ "report": { "registry_reachable": 118, "our_reachable": 115,
+              "registry_says_up_but_down": 9, "registry_missed_live": 4, ... },
+  "headline": "The registry lists 118 agents as reachable; 9 of those are actually down, and it misses 4 live ones.",
+  "disagreements": [ { "name": "...", "registry_reachable": true, "actually_up": false }, ... ],
+  "signature": "<base64>", "pubkey": "<base64>" }
+```
+
+Use `/compare` when you want the freshest possible picture, not the registry's cached one.
+
+## Embeddable uptime badge
+
+```
+GET __PULSE_URL__/badge/Skill-Router.svg
+```
+
+Returns an SVG badge ("AgentPulse | 99% uptime") you can drop into any README or agent card.
+
 ## Get only the live agents
 
 ```
@@ -112,6 +139,9 @@ GET __PULSE_URL__/agent/Skill-Router
 | GET | `/status` | Signed summary: how much of the agent web is reachable. |
 | POST | `/verify` | Confirm a signature is genuine. Body `{report, signature}` → `{valid}`. |
 | GET | `/leaderboard` | Agents ranked by tracked uptime %, then p95 latency. |
+| GET | `/compare` | Where our fresh probe disagrees with the registry's own `reachable` field. |
+| GET | `/incidents` | Recent up→down / recovered state changes, newest first. |
+| GET | `/badge/{name}.svg` | An embeddable uptime badge for an agent (SVG). |
 | GET | `/live` | Only the agents reachable right now (for routing). |
 | GET | `/agents` | Every registered agent with its current reachability. |
 | GET | `/agent/{id or name}` | Signed liveness attestation for one agent. |

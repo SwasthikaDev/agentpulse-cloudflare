@@ -54,6 +54,15 @@
   .agent .lat{font-family:var(--mono);font-size:.72rem;color:var(--faint);white-space:nowrap}
   .loading{color:var(--muted);font-family:var(--mono);padding:30px 0}
   .sub2{font-family:var(--mono);font-size:.74rem;color:var(--faint)}
+  .fresh{margin:16px 0 4px;padding:13px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;background:var(--panel);font-size:.95rem}
+  .fresh b{color:var(--accent)}
+  .inc{display:grid;gap:6px}
+  .incrow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.9rem}
+  .incrow .tag{font-family:var(--mono);font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;text-align:center}
+  .incrow.down .tag{background:color-mix(in srgb,var(--down) 22%,transparent);color:var(--down)}
+  .incrow.recovered .tag{background:color-mix(in srgb,var(--up) 22%,transparent);color:var(--up)}
+  .incrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .incrow .ago{font-family:var(--mono);font-size:.72rem;color:var(--faint)}
   .lb{display:grid;gap:6px}
   .lbrow{display:grid;grid-template-columns:30px 1fr 130px 78px;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 13px}
   .lbrow .rank{font-family:var(--mono);font-weight:800;color:var(--faint);font-variant-numeric:tabular-nums}
@@ -94,12 +103,22 @@
     </div>
     <div class="bar" id="bar" aria-hidden="true"></div>
 
+    <div class="fresh" id="fresh" hidden></div>
+
     <section>
       <div class="row">
         <h2>Most reliable agents</h2>
         <span class="sub2">ranked by tracked uptime, then speed</span>
       </div>
       <div class="lb" id="lb"><div class="loading">Building the track record…</div></div>
+    </section>
+
+    <section>
+      <div class="row">
+        <h2>Recent incidents</h2>
+        <span class="sub2">up / down changes we caught</span>
+      </div>
+      <div class="inc" id="inc"><div class="loading">Watching for state changes…</div></div>
     </section>
 
     <section>
@@ -179,14 +198,36 @@
       }).join("");
     }).catch(function(){});
   }
+  function loadFresh(){
+    fetch("/compare").then(function(r){ return r.json(); }).then(function(d){
+      var r = d.report || {}; var el = document.getElementById("fresh");
+      var down = r.registry_says_up_but_down||0, missed = r.registry_missed_live||0;
+      if(down===0 && missed===0){ el.hidden = true; return; }
+      el.hidden = false;
+      el.innerHTML = "The registry lists <b>"+(r.registry_reachable||0)+"</b> agents as reachable — but <b>"+down+
+        "</b> of those are actually down"+(missed? ", and it misses <b>"+missed+"</b> live ones":"")+". AgentPulse probes them fresh.";
+    }).catch(function(){});
+  }
+  function loadInc(){
+    fetch("/incidents").then(function(r){ return r.json(); }).then(function(d){
+      var el = document.getElementById("inc"); var list = (d.incidents||[]).slice(0,12);
+      if(!list.length){ el.innerHTML = '<div class="loading">No state changes yet — everything steady since the last sweep.</div>'; return; }
+      el.innerHTML = list.map(function(x){
+        var nm = (x.name||"(unnamed)").replace(/</g,"&lt;");
+        var tag = x.type==="recovered" ? "recovered" : "down";
+        return '<div class="incrow '+tag+'"><span class="tag">'+tag+'</span><span class="nm">'+nm+'</span><span class="ago">'+fmtAgo(x.at)+'</span></div>';
+      }).join("");
+    }).catch(function(){});
+  }
   document.getElementById("filters").addEventListener("click", function(e){
     var b = e.target.closest("button"); if(!b) return;
     filter = b.dataset.f;
     [].forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x===b); });
     render();
   });
-  load(); loadLB();
-  setInterval(function(){ load(); loadLB(); }, 30000);
+  function refreshAll(){ load(); loadLB(); loadFresh(); loadInc(); }
+  refreshAll();
+  setInterval(refreshAll, 30000);
 </script>
 </body>
 </html>
