@@ -68,6 +68,13 @@
   .verdict{margin-top:12px;padding:12px 15px;border-radius:8px;font-weight:700;font-size:.95rem;font-family:var(--mono)}
   .verdict.good{background:color-mix(in srgb,var(--up) 15%,transparent);color:var(--up);border:1px solid color-mix(in srgb,var(--up) 40%,transparent)}
   .verdict.bad{background:color-mix(in srgb,var(--down) 15%,transparent);color:var(--down);border:1px solid color-mix(in srgb,var(--down) 40%,transparent)}
+  .apibar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+  .apibar button{font-family:var(--mono);font-size:.78rem;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 12px;cursor:pointer}
+  .apibar button:hover{border-color:var(--accent);color:var(--accent)}
+  .apibar button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .apibar input{font-family:var(--mono);font-size:.78rem;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:180px}
+  .apibar input:focus{outline:none;border-color:var(--accent)}
+  .apiimg{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:10px}
   .inc{display:grid;gap:6px}
   .incrow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.9rem}
   .incrow .tag{font-family:var(--mono);font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;text-align:center}
@@ -132,6 +139,33 @@
         <pre id="tryout" class="tryout">Click &ldquo;Fetch a signed report&rdquo; to pull a live, signed snapshot from AgentPulse.</pre>
         <div id="tryverdict" class="verdict" hidden></div>
       </div>
+    </section>
+
+    <section>
+      <div class="row">
+        <h2>Explore the API</h2>
+        <span class="sub2">click any endpoint to see its live response</span>
+      </div>
+      <div class="apibar">
+        <button type="button" data-ep="/state">/state</button>
+        <button type="button" data-ep="/status">/status</button>
+        <button type="button" data-ep="/leaderboard">/leaderboard</button>
+        <button type="button" data-ep="/compare">/compare</button>
+        <button type="button" data-ep="/incidents">/incidents</button>
+        <button type="button" data-ep="/live">/live</button>
+        <button type="button" data-ep="/agents">/agents</button>
+        <button type="button" data-ep="/pubkey">/pubkey</button>
+        <button type="button" data-ep="/health">/health</button>
+        <button type="button" data-ep="/skill.md" data-kind="text">/skill.md</button>
+      </div>
+      <div class="apibar">
+        <input id="agInput" value="Skill-Router" spellcheck="false" aria-label="agent name">
+        <button type="button" id="agBtn">/agent/{name}</button>
+        <button type="button" id="badgeBtn">/badge/{name}.svg</button>
+        <span class="sub2">try any agent name from the leaderboard below</span>
+      </div>
+      <div id="apiimg" class="apiimg" hidden></div>
+      <pre id="apiout" class="tryout">Click an endpoint above to see its live response.</pre>
     </section>
 
     <section>
@@ -289,6 +323,33 @@
         refreshAll();
       }).catch(function(){ out.textContent="Refresh failed — try again."; });
     });
+  })();
+
+  // --- API explorer: click an endpoint, see its live response ---
+  (function(){
+    var out=document.getElementById("apiout"), img=document.getElementById("apiimg");
+    function asJSON(ep){
+      img.hidden=true; out.hidden=false; out.textContent="GET "+ep+" …";
+      fetch(ep).then(function(r){return r.text();}).then(function(t){
+        try{ out.textContent="GET "+ep+"\n\n"+JSON.stringify(JSON.parse(t),null,2); }
+        catch(e){ out.textContent="GET "+ep+"\n\n"+t; }
+      }).catch(function(){ out.textContent="Could not reach "+ep+" — try again."; });
+    }
+    function asText(ep){
+      img.hidden=true; out.hidden=false; out.textContent="GET "+ep+" …";
+      fetch(ep).then(function(r){return r.text();}).then(function(t){ out.textContent=t; }).catch(function(){ out.textContent="Could not reach "+ep; });
+    }
+    function asImg(ep){
+      out.hidden=true; img.hidden=false;
+      img.innerHTML='<div class="sub2" style="margin-bottom:8px">GET '+ep+'</div><img src="'+ep+'" alt="uptime badge" style="height:22px;display:block">';
+    }
+    document.querySelectorAll('.apibar button[data-ep]').forEach(function(b){
+      b.addEventListener("click", function(){ b.dataset.kind==="text" ? asText(b.dataset.ep) : asJSON(b.dataset.ep); });
+    });
+    var ag=document.getElementById("agInput");
+    function name(){ return encodeURIComponent((ag.value||"Skill-Router").trim() || "Skill-Router"); }
+    document.getElementById("agBtn").addEventListener("click", function(){ asJSON("/agent/"+name()); });
+    document.getElementById("badgeBtn").addEventListener("click", function(){ asImg("/badge/"+name()+".svg"); });
   })();
 
   function refreshAll(){ load(); loadLB(); loadFresh(); loadInc(); }
