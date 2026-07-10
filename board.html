@@ -56,6 +56,18 @@
   .sub2{font-family:var(--mono);font-size:.74rem;color:var(--faint)}
   .fresh{margin:16px 0 4px;padding:13px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;background:var(--panel);font-size:.95rem}
   .fresh b{color:var(--accent)}
+  .tryit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .trybtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .trybtns button{font-family:var(--mono);font-size:.8rem;font-weight:600;color:#0d1117;background:var(--accent);border:none;border-radius:7px;padding:9px 13px;cursor:pointer}
+  .trybtns button:hover{filter:brightness(1.08)}
+  .trybtns button:disabled{background:var(--panel-2);color:var(--faint);cursor:not-allowed;border:1px solid var(--line)}
+  .trybtns button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);margin-left:auto}
+  .trybtns button.ghost:hover{color:var(--text);border-color:var(--accent)}
+  .trybtns button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tryout{font-family:var(--mono);font-size:.78rem;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:0;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;line-height:1.5}
+  .verdict{margin-top:12px;padding:12px 15px;border-radius:8px;font-weight:700;font-size:.95rem;font-family:var(--mono)}
+  .verdict.good{background:color-mix(in srgb,var(--up) 15%,transparent);color:var(--up);border:1px solid color-mix(in srgb,var(--up) 40%,transparent)}
+  .verdict.bad{background:color-mix(in srgb,var(--down) 15%,transparent);color:var(--down);border:1px solid color-mix(in srgb,var(--down) 40%,transparent)}
   .inc{display:grid;gap:6px}
   .incrow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.9rem}
   .incrow .tag{font-family:var(--mono);font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;text-align:center}
@@ -104,6 +116,23 @@
     <div class="bar" id="bar" aria-hidden="true"></div>
 
     <div class="fresh" id="fresh" hidden></div>
+
+    <section>
+      <div class="row">
+        <h2>Verify it yourself</h2>
+        <span class="sub2">no terminal needed — click through the cryptographic proof</span>
+      </div>
+      <div class="tryit">
+        <div class="trybtns">
+          <button id="b1" type="button">1 &middot; Fetch a signed report</button>
+          <button id="b2" type="button" disabled>2 &middot; Verify it</button>
+          <button id="b3" type="button" disabled>3 &middot; Tamper &amp; re-verify</button>
+          <button id="brefresh" type="button" class="ghost">&#8635; Force a live probe</button>
+        </div>
+        <pre id="tryout" class="tryout">Click &ldquo;Fetch a signed report&rdquo; to pull a live, signed snapshot from AgentPulse.</pre>
+        <div id="tryverdict" class="verdict" hidden></div>
+      </div>
+    </section>
 
     <section>
       <div class="row">
@@ -227,6 +256,41 @@
     [].forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x===b); });
     render();
   });
+  // --- interactive "verify it yourself" panel ---
+  (function(){
+    var cur=null, out=document.getElementById("tryout"), verdict=document.getElementById("tryverdict");
+    var b1=document.getElementById("b1"), b2=document.getElementById("b2"), b3=document.getElementById("b3"), br=document.getElementById("brefresh");
+    function verd(good,msg){ verdict.hidden=false; verdict.className="verdict "+(good?"good":"bad"); verdict.textContent=(good?"✅ valid  —  ":"❌ invalid  —  ")+msg; }
+    function clr(){ verdict.hidden=true; }
+    b1.addEventListener("click", function(){
+      clr(); out.textContent="Fetching a signed report from /state …";
+      fetch("/state").then(function(r){return r.json();}).then(function(d){
+        cur={report:d.report, signature:d.signature};
+        out.textContent="GET /state\n\n"+d.headline+"\n\nreport = "+JSON.stringify(d.report,null,2)+"\n\nsignature = "+String(d.signature).slice(0,48)+"…";
+        b2.disabled=false; b3.disabled=false;
+      }).catch(function(){ out.textContent="Could not reach /state — try again."; });
+    });
+    b2.addEventListener("click", function(){
+      if(!cur) return; clr();
+      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cur)})
+        .then(function(r){return r.json();}).then(function(v){ verd(v.valid, v.message); });
+    });
+    b3.addEventListener("click", function(){
+      if(!cur) return; clr();
+      var t=JSON.parse(JSON.stringify(cur.report)); var was=t.reachable; t.reachable=(was||0)+999;
+      out.textContent="Tampered: changed report.reachable from "+was+" to "+t.reachable+"\nPosting the altered report with the ORIGINAL signature to /verify …";
+      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({report:t,signature:cur.signature})})
+        .then(function(r){return r.json();}).then(function(v){ verd(v.valid, v.message); });
+    });
+    br.addEventListener("click", function(){
+      clr(); out.textContent="Forcing a live probe (POST /refresh) …";
+      fetch("/refresh",{method:"POST"}).then(function(r){return r.json();}).then(function(d){
+        out.textContent="POST /refresh\nreprobed: "+d.reprobed+"   reachable now: "+d.reachable+"   total: "+d.total;
+        refreshAll();
+      }).catch(function(){ out.textContent="Refresh failed — try again."; });
+    });
+  })();
+
   function refreshAll(){ load(); loadLB(); loadFresh(); loadInc(); }
   refreshAll();
   setInterval(refreshAll, 30000);
