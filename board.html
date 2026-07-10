@@ -3,337 +3,384 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgentPulse — is the agent web alive?</title>
-<meta name="description" content="Live, signed uptime for every agent in the NANDA registry. See which agents actually answer right now.">
+<title>AgentPulse — uptime for the agent web</title>
+<meta name="description" content="Live, signed uptime for every agent in the NANDA registry.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%93%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#0d1117; --panel:#131c26; --panel-2:#0f1720; --line:#233240;
-    --text:#e8eef4; --muted:#93a6b4; --faint:#5f7280;
-    --up:#3fb96b; --down:#e2604a; --unk:#7c8a97; --accent:#e7a33f;
-    --mono:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --bg:#080B11; --bg2:#0A0E15;
+    --surface:#0E131C; --surface-2:#111826; --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+    --text:#EAEEF4; --muted:#8A97A7; --faint:#5A6675;
+    --gold:#F5B84A; --gold-2:#FFCB6B; --gold-soft:rgba(245,184,74,.13);
+    --up:#3ED88E; --down:#FB7185; --warn:#FBBF24; --unk:#64748B;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 20px 45px -30px rgba(0,0,0,.9);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;
-    background-image:radial-gradient(circle at 15% -10%, rgba(231,163,63,.08), transparent 40%),radial-gradient(circle at 100% 0%, rgba(63,185,107,.07), transparent 35%)}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
-  header{padding:56px 0 22px}
-  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
-  h1{font-size:clamp(2rem,5.5vw,3.3rem);font-weight:850;letter-spacing:-.03em;margin:12px 0 10px;line-height:1}
-  .sub{color:var(--muted);max-width:640px;font-size:1.08rem}
-  .headline{margin:26px 0 6px;font-family:var(--mono);font-size:clamp(1rem,2.4vw,1.35rem);font-weight:600}
-  .headline b{color:var(--accent)}
-  .meta{font-family:var(--mono);font-size:.78rem;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
-  .dotpulse{width:8px;height:8px;border-radius:50%;background:var(--up);display:inline-block;box-shadow:0 0 0 0 rgba(63,185,107,.6);animation:pulse 2.4s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,107,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,107,0)}100%{box-shadow:0 0 0 0 rgba(63,185,107,0)}}
-  @media (prefers-reduced-motion: reduce){.dotpulse{animation:none}}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(60rem 40rem at 8% -10%, rgba(245,184,74,.08), transparent 60%),
+      radial-gradient(55rem 40rem at 105% 0%, rgba(62,216,142,.06), transparent 55%),
+      radial-gradient(40rem 40rem at 50% 120%, rgba(99,120,150,.05), transparent 60%);
+    background-attachment:fixed;
+  }
+  ::selection{background:var(--gold-soft)}
+  a{color:var(--gold-2);text-decoration:none}
+  a:hover{text-decoration:underline;text-underline-offset:3px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono)}
+  .tnum{font-variant-numeric:tabular-nums}
 
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:26px 0 8px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
-  .card .n{font-family:var(--mono);font-weight:800;font-size:2.1rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .card .k{color:var(--muted);font-size:.85rem;margin-top:2px}
-  .card.up .n{color:var(--up)} .card.down .n{color:var(--down)} .card.unk .n{color:var(--unk)} .card.total .n{color:var(--text)}
+  h1,h2,h3{margin:0;line-height:1.05;letter-spacing:-.02em}
+  h2{font-size:clamp(1.35rem,2.6vw,1.85rem);font-weight:800}
+  .eyebrow{font-size:.74rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  .muted{color:var(--muted)}
 
-  .bar{display:flex;height:12px;border-radius:7px;overflow:hidden;margin:18px 0 4px;border:1px solid var(--line)}
-  .bar i{display:block;height:100%}
-  .bar .b-up{background:var(--up)} .bar .b-down{background:var(--down)} .bar .b-unk{background:var(--unk)}
+  /* top nav */
+  .nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
+  .nav .wrap{display:flex;align-items:center;gap:12px;height:62px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;font-size:1.05rem}
+  .brand .mk{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(150deg,rgba(245,184,74,.22),rgba(245,184,74,.05));border:1px solid rgba(245,184,74,.35);box-shadow:0 0 18px -6px rgba(245,184,74,.5)}
+  .nav .spacer{flex:1}
+  .nav .pill{display:inline-flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);border:1px solid var(--line);padding:7px 13px;border-radius:999px;background:var(--surface)}
+  .nav .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 0 0 rgba(62,216,142,.55);animation:beat 2.4s infinite}
+  .nav .navlink{font-size:.85rem;color:var(--muted);padding:8px 12px;border-radius:8px}
+  .nav .navlink:hover{color:var(--text);text-decoration:none;background:var(--surface)}
+  @keyframes beat{0%{box-shadow:0 0 0 0 rgba(62,216,142,.5)}70%{box-shadow:0 0 0 7px rgba(62,216,142,0)}100%{box-shadow:0 0 0 0 rgba(62,216,142,0)}}
 
-  section{padding:26px 0 40px}
-  .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-  h2{font-size:1.15rem;margin:0}
-  .filterbtns{display:flex;gap:8px;font-family:var(--mono);font-size:.76rem}
-  .filterbtns button{background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
-  .filterbtns button[aria-pressed="true"]{color:var(--text);border-color:var(--accent)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-  .agent{display:flex;align-items:center;gap:11px;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--unk);border-radius:9px;padding:10px 13px}
-  .agent.up{border-left-color:var(--up)} .agent.down{border-left-color:var(--down)}
-  .agent .dot{width:9px;height:9px;border-radius:50%;background:var(--unk);flex:none}
-  .agent.up .dot{background:var(--up)} .agent.down .dot{background:var(--down)}
-  .agent .nm{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-  .agent .lat{font-family:var(--mono);font-size:.72rem;color:var(--faint);white-space:nowrap}
-  .loading{color:var(--muted);font-family:var(--mono);padding:30px 0}
-  .sub2{font-family:var(--mono);font-size:.74rem;color:var(--faint)}
-  .fresh{margin:16px 0 4px;padding:13px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;background:var(--panel);font-size:.95rem}
-  .fresh b{color:var(--accent)}
-  .tryit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-  .trybtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-  .trybtns button{font-family:var(--mono);font-size:.8rem;font-weight:600;color:#0d1117;background:var(--accent);border:none;border-radius:7px;padding:9px 13px;cursor:pointer}
-  .trybtns button:hover{filter:brightness(1.08)}
-  .trybtns button:disabled{background:var(--panel-2);color:var(--faint);cursor:not-allowed;border:1px solid var(--line)}
-  .trybtns button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);margin-left:auto}
-  .trybtns button.ghost:hover{color:var(--text);border-color:var(--accent)}
-  .trybtns button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .tryout{font-family:var(--mono);font-size:.78rem;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:0;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;line-height:1.5}
-  .verdict{margin-top:12px;padding:12px 15px;border-radius:8px;font-weight:700;font-size:.95rem;font-family:var(--mono)}
-  .verdict.good{background:color-mix(in srgb,var(--up) 15%,transparent);color:var(--up);border:1px solid color-mix(in srgb,var(--up) 40%,transparent)}
-  .verdict.bad{background:color-mix(in srgb,var(--down) 15%,transparent);color:var(--down);border:1px solid color-mix(in srgb,var(--down) 40%,transparent)}
-  .apibar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
-  .apibar button{font-family:var(--mono);font-size:.78rem;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 12px;cursor:pointer}
-  .apibar button:hover{border-color:var(--accent);color:var(--accent)}
-  .apibar button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .apibar input{font-family:var(--mono);font-size:.78rem;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:180px}
-  .apibar input:focus{outline:none;border-color:var(--accent)}
-  .apiimg{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:10px}
-  .inc{display:grid;gap:6px}
-  .incrow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.9rem}
-  .incrow .tag{font-family:var(--mono);font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;text-align:center}
-  .incrow.down .tag{background:color-mix(in srgb,var(--down) 22%,transparent);color:var(--down)}
-  .incrow.recovered .tag{background:color-mix(in srgb,var(--up) 22%,transparent);color:var(--up)}
-  .incrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-  .incrow .ago{font-family:var(--mono);font-size:.72rem;color:var(--faint)}
-  .lb{display:grid;gap:6px}
-  .lbrow{display:grid;grid-template-columns:30px 1fr 130px 78px;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 13px}
-  .lbrow .rank{font-family:var(--mono);font-weight:800;color:var(--faint);font-variant-numeric:tabular-nums}
-  .lbrow.top1 .rank{color:var(--accent)} .lbrow.top2 .rank{color:#c9d3db} .lbrow.top3 .rank{color:#cd8b5a}
-  .lbrow .nm{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;min-width:0}
+  /* hero */
+  .hero{padding:64px 0 20px;position:relative}
+  .hero h1{font-size:clamp(3rem,8vw,5.4rem);font-weight:800;letter-spacing:-.045em;margin:14px 0 0}
+  .hero h1 .g{background:linear-gradient(180deg,#fff,#cfd7e0);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .tag{margin:18px 0 0;font-size:1.14rem;color:var(--muted);max-width:620px;text-transform:none;text-align:left;font-family:var(--sans);letter-spacing:normal}
+  .hero .tag b{color:var(--text);font-weight:600}
+
+  /* EKG */
+  .ekg{position:relative;height:76px;margin:26px 0 6px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+  .ekg svg{position:absolute;left:0;top:0;height:100%;width:200%;animation:sweep 5.5s linear infinite}
+  .ekg path{fill:none;stroke:url(#eg);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(245,184,74,.55))}
+  @keyframes sweep{to{transform:translateX(-50%)}}
+
+  .headline{margin:22px 0 8px;font-size:clamp(1.3rem,3vw,2rem);font-weight:700;letter-spacing:-.02em;line-height:1.25;max-width:900px}
+  .headline .n{font-family:var(--mono);font-weight:700}
+  .headline .up{color:var(--up)} .headline .down{color:var(--down)} .headline .gold{color:var(--gold)}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;color:var(--muted);border:1px solid var(--line);padding:6px 12px;border-radius:999px;background:var(--surface)}
+  .chip code{font-family:var(--mono);color:var(--gold-2);font-size:.9em}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--up);animation:beat 2.4s infinite}
+
+  section{padding:34px 0;position:relative}
+  .shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .shead h2::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--gold);transform:rotate(45deg) translateY(-2px);margin-right:11px;box-shadow:0 0 10px -1px var(--gold)}
+  .shead .sub{font-size:.86rem;color:var(--faint)}
+
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+  .stat{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);overflow:hidden;transition:transform .25s ease,border-color .25s ease}
+  .stat:hover{transform:translateY(-3px);border-color:var(--line-2)}
+  .stat::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--sc,var(--gold)),transparent);opacity:.7}
+  .stat .n{font-family:var(--mono);font-weight:700;font-size:2.5rem;letter-spacing:-.03em;line-height:1;color:var(--sc,var(--text));font-variant-numeric:tabular-nums}
+  .stat .k{margin-top:9px;font-size:.85rem;color:var(--muted);font-weight:500}
+  .stat.up{--sc:var(--up)} .stat.down{--sc:var(--down)} .stat.unk{--sc:var(--unk)} .stat.total{--sc:var(--gold)}
+
+  /* status bar */
+  .barwrap{margin:22px 0 6px}
+  .bar{display:flex;height:16px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
+  .bar i{display:block;height:100%;transition:width 1s cubic-bezier(.22,1,.36,1)}
+  .bar .b-up{background:linear-gradient(90deg,#2FBF7A,var(--up))}
+  .bar .b-down{background:linear-gradient(90deg,#E5556B,var(--down))}
+  .bar .b-unk{background:var(--unk)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:.82rem;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* callout */
+  .callout{display:flex;gap:14px;align-items:flex-start;margin-top:22px;padding:16px 20px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,rgba(245,184,74,.06),transparent);position:relative}
+  .callout::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--gold)}
+  .callout .ico{color:var(--gold);flex:none;margin-top:1px}
+  .callout b{color:var(--gold-2)}
+
+  /* generic panel */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+
+  /* buttons */
+  .btn{font-family:var(--sans);font-size:.86rem;font-weight:600;color:#0A0D13;background:linear-gradient(180deg,var(--gold-2),var(--gold));border:none;border-radius:10px;padding:11px 16px;cursor:pointer;transition:transform .15s ease,box-shadow .2s ease}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px -10px rgba(245,184,74,.7)}
+  .btn:disabled{background:var(--surface-2);color:var(--faint);cursor:not-allowed;border:1px solid var(--line);box-shadow:none;transform:none}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line-2)}
+  .btn.ghost:hover{border-color:var(--gold);color:var(--gold-2);box-shadow:none}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .btnrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .spacerL{margin-left:auto}
+
+  .out{font-family:var(--mono);font-size:.8rem;color:var(--muted);background:#070A0F;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:14px 0 0;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+  .verdict{margin-top:14px;padding:13px 16px;border-radius:12px;font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:9px}
+  .verdict.good{background:rgba(62,216,142,.12);color:var(--up);border:1px solid rgba(62,216,142,.35)}
+  .verdict.bad{background:rgba(251,113,133,.12);color:var(--down);border:1px solid rgba(251,113,133,.35)}
+
+  /* explorer chips */
+  .chips{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+  .chipbtn{font-family:var(--mono);font-size:.8rem;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 13px;cursor:pointer;transition:border-color .2s ease,color .2s ease,transform .15s ease}
+  .chipbtn:hover{border-color:var(--gold);color:var(--gold-2);transform:translateY(-1px)}
+  .field{font-family:var(--mono);font-size:.82rem;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;width:190px}
+  .field:focus{outline:none;border-color:var(--gold)}
+
+  /* leaderboard */
+  .lb{display:grid;gap:8px}
+  .lbrow{display:grid;grid-template-columns:34px 1fr 150px 92px;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;transition:border-color .2s ease,transform .15s ease}
+  .lbrow:hover{border-color:var(--line-2);transform:translateX(2px)}
+  .lbrow .rank{font-family:var(--mono);font-weight:700;color:var(--faint);font-variant-numeric:tabular-nums}
+  .lbrow.t1{border-color:rgba(245,184,74,.4)} .lbrow.t1 .rank{color:var(--gold)}
+  .lbrow.t2 .rank{color:#cbd5e1} .lbrow.t3 .rank{color:#d8a06a}
+  .lbrow .nm{font-weight:600;display:flex;align-items:center;gap:9px;min-width:0}
+  .lbrow .nm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lbrow .nm .d{width:8px;height:8px;border-radius:50%;background:var(--unk);flex:none}
-  .lbrow.isup .nm .d{background:var(--up)} .lbrow.isdown .nm .d{background:var(--down)}
-  .lbrow .track{height:8px;border-radius:5px;background:var(--panel);overflow:hidden;border:1px solid var(--line)}
-  .lbrow .track i{display:block;height:100%;background:var(--up)}
-  .lbrow .pct{font-family:var(--mono);font-size:.82rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
-  .lbrow .lat2{font-family:var(--mono);font-size:.7rem;color:var(--faint)}
-  @media (max-width:620px){ .lbrow{grid-template-columns:26px 1fr 60px} .lbrow .track{display:none} }
+  .lbrow.isup .nm .d{background:var(--up);box-shadow:0 0 8px -1px var(--up)} .lbrow.isdown .nm .d{background:var(--down)}
+  .lbrow .track{height:8px;border-radius:6px;background:#0A0E15;overflow:hidden;border:1px solid var(--line)}
+  .lbrow .track i{display:block;height:100%;background:linear-gradient(90deg,#2FBF7A,var(--up));transition:width .8s ease}
+  .lbrow .pct{text-align:right}
+  .lbrow .pct b{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums}
+  .lbrow .pct small{display:block;font-family:var(--mono);font-size:.68rem;color:var(--faint)}
+  @media(max-width:640px){.lbrow{grid-template-columns:26px 1fr 64px}.lbrow .track{display:none}}
 
-  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:.85rem;font-family:var(--mono)}
-  footer a{color:var(--accent);text-decoration:none}
-  code{font-family:var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.85em}
+  /* incidents */
+  .inc{display:grid;gap:8px}
+  .incrow{display:grid;grid-template-columns:104px 1fr auto;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 16px}
+  .tag{font-family:var(--mono);font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:4px 9px;border-radius:999px;text-align:center}
+  .incrow.down .tag{background:rgba(251,113,133,.16);color:var(--down)}
+  .incrow.recovered .tag{background:rgba(62,216,142,.16);color:var(--up)}
+  .incrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .incrow .ago{font-family:var(--mono);font-size:.74rem;color:var(--faint)}
+
+  .loading{color:var(--faint);font-family:var(--mono);font-size:.85rem;padding:26px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+
+  footer{border-top:1px solid var(--line);margin-top:20px;padding:34px 0 60px;color:var(--faint);font-size:.86rem}
+  footer .badge{display:inline-flex;align-items:center;gap:10px;margin-bottom:12px}
+  footer a{color:var(--gold-2)}
+  .flinks{font-family:var(--mono);font-size:.82rem;margin-top:6px}
+
+  .reveal{animation:rise .5s cubic-bezier(.22,1,.36,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
 </head>
 <body>
+
+<nav class="nav">
   <div class="wrap">
-    <header>
-      <div class="eyebrow">Uptime for the agent web</div>
-      <h1>Agent&#8202;Pulse</h1>
-      <p class="sub">The NANDA registry lists many agents, but you can't tell which ones actually answer. AgentPulse checks every one at its real endpoint, first-hand, and signs the result so you can verify it.</p>
-      <div class="headline" id="headline">Checking the agent web…</div>
-      <div class="meta">
-        <span><span class="dotpulse"></span> live probe</span>
-        <span id="checkedAt">last checked: —</span>
-        <span>signed · verify at <code>/verify</code></span>
-      </div>
-    </header>
+    <span class="brand">
+      <span class="mk">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M2 12h5l2-6 4 12 2-6h7" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      AgentPulse
+    </span>
+    <span class="spacer"></span>
+    <a class="navlink" href="#reliable">Leaderboard</a>
+    <a class="navlink" href="#verify">Verify</a>
+    <a class="navlink" href="/skill.md">Docs</a>
+    <span class="pill"><span class="dot"></span> live</span>
+  </div>
+</nav>
 
-    <div class="stats" id="stats">
-      <div class="card total"><div class="n" id="s-total">—</div><div class="k">registered agents</div></div>
-      <div class="card up"><div class="n" id="s-up">—</div><div class="k">reachable now</div></div>
-      <div class="card down"><div class="n" id="s-down">—</div><div class="k">not answering</div></div>
-      <div class="card unk"><div class="n" id="s-unk">—</div><div class="k">no endpoint to check</div></div>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Uptime for the agent web</div>
+    <h1><span class="g">AgentPulse</span></h1>
+    <p class="tag">The NANDA registry lists many agents, but you can't tell which ones actually answer. AgentPulse checks every one at its real endpoint, <b>first-hand</b>, and <b>signs</b> the result so you can verify it.</p>
+
+    <div class="ekg" aria-hidden="true">
+      <svg viewBox="0 0 400 80" preserveAspectRatio="none">
+        <defs><linearGradient id="eg" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="var(--gold)" stop-opacity=".15"/>
+          <stop offset=".5" stop-color="var(--gold-2)"/>
+          <stop offset="1" stop-color="var(--gold)" stop-opacity=".15"/>
+        </linearGradient></defs>
+        <path d="M0,40 H60 L70,40 76,20 82,40 H96 L104,40 110,14 118,66 126,26 132,40 H200 H260 L270,40 276,20 282,40 H296 L304,40 310,14 318,66 326,26 332,40 H400"/>
+      </svg>
     </div>
-    <div class="bar" id="bar" aria-hidden="true"></div>
 
-    <div class="fresh" id="fresh" hidden></div>
+    <div class="headline" id="headline">Checking the agent web…</div>
+    <div class="meta">
+      <span class="chip"><span class="dot"></span> live probe</span>
+      <span class="chip" id="checkedAt">last checked: —</span>
+      <span class="chip">signed · verify at <code>/verify</code></span>
+    </div>
+  </header>
 
-    <section>
-      <div class="row">
-        <h2>Verify it yourself</h2>
-        <span class="sub2">no terminal needed — click through the cryptographic proof</span>
+  <section>
+    <div class="stats reveal">
+      <div class="stat total"><div class="n tnum" id="s-total">—</div><div class="k">registered agents</div></div>
+      <div class="stat up"><div class="n tnum" id="s-up">—</div><div class="k">reachable now</div></div>
+      <div class="stat down"><div class="n tnum" id="s-down">—</div><div class="k">not answering</div></div>
+      <div class="stat unk"><div class="n tnum" id="s-unk">—</div><div class="k">no endpoint to check</div></div>
+    </div>
+    <div class="barwrap reveal">
+      <div class="bar" id="bar" aria-hidden="true"></div>
+      <div class="legend">
+        <span><i style="background:var(--up)"></i> reachable</span>
+        <span><i style="background:var(--down)"></i> not answering</span>
+        <span><i style="background:var(--unk)"></i> no endpoint</span>
       </div>
-      <div class="tryit">
-        <div class="trybtns">
-          <button id="b1" type="button">1 &middot; Fetch a signed report</button>
-          <button id="b2" type="button" disabled>2 &middot; Verify it</button>
-          <button id="b3" type="button" disabled>3 &middot; Tamper &amp; re-verify</button>
-          <button id="brefresh" type="button" class="ghost">&#8635; Force a live probe</button>
-        </div>
-        <pre id="tryout" class="tryout">Click &ldquo;Fetch a signed report&rdquo; to pull a live, signed snapshot from AgentPulse.</pre>
-        <div id="tryverdict" class="verdict" hidden></div>
-      </div>
-    </section>
+    </div>
+    <div class="callout reveal" id="fresh" hidden>
+      <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 8v5m0 3h.01M12 3l9 16H3L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div id="freshtext"></div>
+    </div>
+  </section>
 
-    <section>
-      <div class="row">
-        <h2>Explore the API</h2>
-        <span class="sub2">each button opens the live endpoint in a new tab</span>
+  <section id="verify" class="reveal">
+    <div class="shead"><h2>Verify it yourself</h2><span class="sub">no terminal needed — click through the cryptographic proof</span></div>
+    <div class="panel">
+      <div class="btnrow">
+        <button class="btn" id="b1" type="button">1 · Fetch a signed report</button>
+        <button class="btn ghost" id="b2" type="button" disabled>2 · Verify it</button>
+        <button class="btn ghost" id="b3" type="button" disabled>3 · Tamper &amp; re-verify</button>
+        <button class="btn ghost spacerL" id="brefresh" type="button">↻ Force a live probe</button>
       </div>
-      <div class="apibar">
-        <button type="button" data-ep="/state">/state</button>
-        <button type="button" data-ep="/status">/status</button>
-        <button type="button" data-ep="/leaderboard">/leaderboard</button>
-        <button type="button" data-ep="/compare">/compare</button>
-        <button type="button" data-ep="/incidents">/incidents</button>
-        <button type="button" data-ep="/live">/live</button>
-        <button type="button" data-ep="/agents">/agents</button>
-        <button type="button" data-ep="/pubkey">/pubkey</button>
-        <button type="button" data-ep="/health">/health</button>
-        <button type="button" data-ep="/skill.md" data-kind="text">/skill.md</button>
-      </div>
-      <div class="apibar">
-        <input id="agInput" value="Skill-Router" spellcheck="false" aria-label="agent name">
-        <button type="button" id="agBtn">/agent/{name}</button>
-        <button type="button" id="badgeBtn">/badge/{name}.svg</button>
-        <span class="sub2">try any agent name from the leaderboard below</span>
-      </div>
-    </section>
+      <pre class="out" id="tryout">Click “Fetch a signed report” to pull a live, signed snapshot from AgentPulse.</pre>
+      <div class="verdict" id="tryverdict" hidden></div>
+    </div>
+  </section>
 
-    <section>
-      <div class="row">
-        <h2>Most reliable agents</h2>
-        <span class="sub2">ranked by tracked uptime, then speed</span>
+  <section class="reveal">
+    <div class="shead"><h2>Explore the API</h2><span class="sub">each button opens the live endpoint in a new tab</span></div>
+    <div class="panel">
+      <div class="chips" style="margin-bottom:12px">
+        <button class="chipbtn" data-ep="/state">/state</button>
+        <button class="chipbtn" data-ep="/status">/status</button>
+        <button class="chipbtn" data-ep="/leaderboard">/leaderboard</button>
+        <button class="chipbtn" data-ep="/compare">/compare</button>
+        <button class="chipbtn" data-ep="/incidents">/incidents</button>
+        <button class="chipbtn" data-ep="/live">/live</button>
+        <button class="chipbtn" data-ep="/agents">/agents</button>
+        <button class="chipbtn" data-ep="/pubkey">/pubkey</button>
+        <button class="chipbtn" data-ep="/health">/health</button>
+        <button class="chipbtn" data-ep="/skill.md">/skill.md</button>
       </div>
+      <div class="chips">
+        <input class="field" id="agInput" value="Skill-Router" spellcheck="false" aria-label="agent name">
+        <button class="chipbtn" id="agBtn">/agent/{name}</button>
+        <button class="chipbtn" id="badgeBtn">/badge/{name}.svg</button>
+        <span class="sub" style="color:var(--faint);font-size:.8rem">type any agent name from the leaderboard</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section id="reliable" class="reveal">
+      <div class="shead"><h2>Most reliable</h2><span class="sub">ranked by tracked uptime</span></div>
       <div class="lb" id="lb"><div class="loading">Building the track record…</div></div>
     </section>
-
-    <section>
-      <div class="row">
-        <h2>Recent incidents</h2>
-        <span class="sub2">up / down changes we caught</span>
-      </div>
+    <section class="reveal">
+      <div class="shead"><h2>Recent incidents</h2><span class="sub">up / down changes we caught</span></div>
       <div class="inc" id="inc"><div class="loading">Watching for state changes…</div></div>
     </section>
-
-    <section>
-      <div class="row">
-        <h2>Every registered agent</h2>
-        <div class="filterbtns" id="filters">
-          <button data-f="all" aria-pressed="true">all</button>
-          <button data-f="up" aria-pressed="false">reachable</button>
-          <button data-f="down" aria-pressed="false">down</button>
-        </div>
-      </div>
-      <div class="grid" id="grid"><div class="loading">Loading the registry…</div></div>
-    </section>
-
-    <footer>
-      <p style="margin:0 0 10px"><img src="/badge/agentpulse.svg" alt="AgentPulse: live" style="vertical-align:middle"> &nbsp;held to the same standard we hold everyone else.</p>
-      Independently monitoring every agent in the NANDA registry, signed at Cloudflare's edge.<br>
-      API — <a href="/skill.md">/skill.md</a> · <a href="/state">/state</a> · <a href="/status">/status</a> · <a href="/leaderboard">/leaderboard</a> · <a href="/compare">/compare</a> · <a href="/incidents">/incidents</a><br>
-      Built by <a href="https://github.com/SwasthikaDev">@SwasthikaDev</a> for the NANDA agent web.
-    </footer>
   </div>
 
+  <footer>
+    <div class="badge"><img src="/badge/agentpulse.svg" alt="AgentPulse: live"> &nbsp;<span class="muted">held to the same standard we hold everyone else.</span></div>
+    <div>Independently monitoring every agent in the NANDA registry, signed at Cloudflare's edge.</div>
+    <div class="flinks"><a href="/skill.md">/skill.md</a> · <a href="/state">/state</a> · <a href="/leaderboard">/leaderboard</a> · <a href="/compare">/compare</a> · <a href="/incidents">/incidents</a></div>
+    <div style="margin-top:12px">Built by <a href="https://github.com/SwasthikaDev">@SwasthikaDev</a> for the NANDA agent web.</div>
+  </footer>
+</div>
+
 <script>
-  var ALL = [], filter = "all";
-  function fmtAgo(ts){ if(!ts) return "—"; var s = Math.max(0, Math.floor(Date.now()/1000 - ts));
-    if(s<60) return s+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; return Math.floor(s/3600)+"h ago"; }
-  function render(){
-    var g = document.getElementById("grid");
-    var list = ALL.filter(function(a){ return filter==="all" || (filter==="up"? a.up===true : a.up!==true); });
-    list.sort(function(a,b){ var r=(b.up===true)-(a.up===true); return r || (a.name||"").localeCompare(b.name||""); });
-    if(!list.length){ g.innerHTML = '<div class="loading">No agents in this view.</div>'; return; }
-    g.innerHTML = list.map(function(a){
-      var cls = a.up===true ? "up" : a.up===false ? "down" : "";
-      var lat = a.up===true && a.latency_ms!=null ? (a.latency_ms+"ms") : a.up===false ? "no answer" : "—";
-      var nm = (a.name||"(unnamed)").replace(/</g,"&lt;");
-      return '<div class="agent '+cls+'"><span class="dot"></span><span class="nm" title="'+nm+'">'+nm+'</span><span class="lat">'+lat+'</span></div>';
-    }).join("");
-  }
+  var ALL=[], filter="all";
+  function fmtAgo(ts){ if(!ts) return "—"; var s=Math.max(0,Math.floor(Date.now()/1000-ts)); return s<60? s+"s ago": s<3600? Math.floor(s/60)+"m ago": Math.floor(s/3600)+"h ago"; }
+  function esc(s){ return String(s==null?"":s).replace(/</g,"&lt;"); }
+
   function load(){
-    fetch("/agents").then(function(r){ return r.json(); }).then(function(d){
-      ALL = d.agents || [];
-      document.getElementById("s-total").textContent = d.total;
-      document.getElementById("s-up").textContent = d.reachable;
-      document.getElementById("s-down").textContent = d.unreachable;
-      document.getElementById("s-unk").textContent = d.unverifiable;
-      document.getElementById("checkedAt").textContent = "last checked: " + fmtAgo(d.checked_at);
-      var notReach = d.unreachable + d.unverifiable;
-      var pct = d.total ? Math.round(100*notReach/d.total) : 0;
-      document.getElementById("headline").innerHTML =
-        "<b>"+d.reachable+"</b> of <b>"+d.total+"</b> registered agents are reachable right now — <b>"+pct+"%</b> are not.";
-      var t = d.total||1;
-      document.getElementById("bar").innerHTML =
+    fetch("/agents").then(function(r){return r.json();}).then(function(d){
+      document.getElementById("s-total").textContent=d.total;
+      document.getElementById("s-up").textContent=d.reachable;
+      document.getElementById("s-down").textContent=d.unreachable;
+      document.getElementById("s-unk").textContent=d.unverifiable;
+      document.getElementById("checkedAt").textContent="last checked: "+fmtAgo(d.checked_at);
+      var pct=d.total?Math.round(100*(d.unreachable+d.unverifiable)/d.total):0;
+      document.getElementById("headline").innerHTML=
+        '<span class="n up">'+d.reachable+'</span> of <span class="n">'+d.total+'</span> registered agents are reachable right now — <span class="n gold">'+pct+'%</span> are not.';
+      var t=d.total||1;
+      document.getElementById("bar").innerHTML=
         '<i class="b-up" style="width:'+(100*d.reachable/t)+'%"></i>'+
         '<i class="b-down" style="width:'+(100*d.unreachable/t)+'%"></i>'+
         '<i class="b-unk" style="width:'+(100*d.unverifiable/t)+'%"></i>';
-      render();
-    }).catch(function(){
-      document.getElementById("grid").innerHTML = '<div class="loading">Warming up the probe… refresh in a few seconds.</div>';
-    });
+    }).catch(function(){});
   }
   function loadLB(){
-    fetch("/leaderboard").then(function(r){ return r.json(); }).then(function(d){
-      var el = document.getElementById("lb");
-      var list = (d.agents||[]).slice(0, 15);
-      if(!list.length){ el.innerHTML = '<div class="loading">Track record is still building — check back in a minute.</div>'; return; }
-      el.innerHTML = list.map(function(a, i){
-        var cls = a.up===true ? "isup" : a.up===false ? "isdown" : "";
-        var top = i===0?"top1":i===1?"top2":i===2?"top3":"";
-        var nm = (a.name||"(unnamed)").replace(/</g,"&lt;");
-        var pct = a.uptime_pct==null ? "—" : a.uptime_pct+"%";
-        var w = a.uptime_pct==null ? 0 : a.uptime_pct;
-        var lat = a.p95_latency_ms==null ? "" : ("p95 "+a.p95_latency_ms+"ms");
-        return '<div class="lbrow '+cls+' '+top+'">'+
-          '<span class="rank">'+(i+1)+'</span>'+
-          '<span class="nm"><span class="d"></span>'+nm+'</span>'+
+    fetch("/leaderboard").then(function(r){return r.json();}).then(function(d){
+      var el=document.getElementById("lb"), list=(d.agents||[]).slice(0,12);
+      if(!list.length){ el.innerHTML='<div class="loading">Track record is still building — check back in a minute.</div>'; return; }
+      el.innerHTML=list.map(function(a,i){
+        var cls=a.up===true?"isup":a.up===false?"isdown":"", top=i===0?"t1":i===1?"t2":i===2?"t3":"";
+        var pct=a.uptime_pct==null?"—":a.uptime_pct+"%", w=a.uptime_pct==null?0:a.uptime_pct;
+        var lat=a.p95_latency_ms==null?"":("p95 "+a.p95_latency_ms+"ms");
+        return '<div class="lbrow '+cls+' '+top+'"><span class="rank">'+(i+1)+'</span>'+
+          '<span class="nm"><span class="d"></span><span>'+esc(a.name)+'</span></span>'+
           '<span class="track"><i style="width:'+w+'%"></i></span>'+
-          '<span class="pct">'+pct+'<div class="lat2">'+lat+'</div></span>'+
-        '</div>';
+          '<span class="pct"><b>'+pct+'</b><small>'+lat+'</small></span></div>';
       }).join("");
     }).catch(function(){});
   }
   function loadFresh(){
-    fetch("/compare").then(function(r){ return r.json(); }).then(function(d){
-      var r = d.report || {}; var el = document.getElementById("fresh");
-      var down = r.registry_says_up_but_down||0, missed = r.registry_missed_live||0;
-      if(down===0 && missed===0){ el.hidden = true; return; }
-      el.hidden = false;
-      el.innerHTML = "The registry lists <b>"+(r.registry_reachable||0)+"</b> agents as reachable — but <b>"+down+
-        "</b> of those are actually down"+(missed? ", and it misses <b>"+missed+"</b> live ones":"")+". AgentPulse probes them fresh.";
+    fetch("/compare").then(function(r){return r.json();}).then(function(d){
+      var r=d.report||{}, el=document.getElementById("fresh"), down=r.registry_says_up_but_down||0, missed=r.registry_missed_live||0;
+      if(down===0&&missed===0){ el.hidden=true; return; }
+      el.hidden=false;
+      document.getElementById("freshtext").innerHTML="The registry lists <b>"+(r.registry_reachable||0)+"</b> agents as reachable — but <b>"+down+"</b> of those are actually down"+(missed?", and it misses <b>"+missed+"</b> live ones":"")+". AgentPulse probes them fresh.";
     }).catch(function(){});
   }
   function loadInc(){
-    fetch("/incidents").then(function(r){ return r.json(); }).then(function(d){
-      var el = document.getElementById("inc"); var list = (d.incidents||[]).slice(0,12);
-      if(!list.length){ el.innerHTML = '<div class="loading">No state changes yet — everything steady since the last sweep.</div>'; return; }
-      el.innerHTML = list.map(function(x){
-        var nm = (x.name||"(unnamed)").replace(/</g,"&lt;");
-        var tag = x.type==="recovered" ? "recovered" : "down";
-        return '<div class="incrow '+tag+'"><span class="tag">'+tag+'</span><span class="nm">'+nm+'</span><span class="ago">'+fmtAgo(x.at)+'</span></div>';
+    fetch("/incidents").then(function(r){return r.json();}).then(function(d){
+      var el=document.getElementById("inc"), list=(d.incidents||[]).slice(0,10);
+      if(!list.length){ el.innerHTML='<div class="loading">No state changes yet — steady since the last sweep.</div>'; return; }
+      el.innerHTML=list.map(function(x){
+        var tag=x.type==="recovered"?"recovered":"down";
+        return '<div class="incrow '+tag+'"><span class="tag">'+tag+'</span><span class="nm">'+esc(x.name)+'</span><span class="ago">'+fmtAgo(x.at)+'</span></div>';
       }).join("");
     }).catch(function(){});
   }
-  document.getElementById("filters").addEventListener("click", function(e){
-    var b = e.target.closest("button"); if(!b) return;
-    filter = b.dataset.f;
-    [].forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x===b); });
-    render();
-  });
-  // --- interactive "verify it yourself" panel ---
+
+  // verify panel
   (function(){
     var cur=null, out=document.getElementById("tryout"), verdict=document.getElementById("tryverdict");
-    var b1=document.getElementById("b1"), b2=document.getElementById("b2"), b3=document.getElementById("b3"), br=document.getElementById("brefresh");
-    function verd(good,msg){ verdict.hidden=false; verdict.className="verdict "+(good?"good":"bad"); verdict.textContent=(good?"✅ valid  —  ":"❌ invalid  —  ")+msg; }
+    var b1=document.getElementById("b1"),b2=document.getElementById("b2"),b3=document.getElementById("b3"),br=document.getElementById("brefresh");
+    function verd(g,m){ verdict.hidden=false; verdict.className="verdict "+(g?"good":"bad"); verdict.textContent=(g?"✅ valid — ":"❌ invalid — ")+m; }
     function clr(){ verdict.hidden=true; }
-    b1.addEventListener("click", function(){
-      clr(); out.textContent="Fetching a signed report from /state …";
-      fetch("/state").then(function(r){return r.json();}).then(function(d){
-        cur={report:d.report, signature:d.signature};
+    b1.addEventListener("click",function(){ clr(); out.textContent="Fetching a signed report from /state …";
+      fetch("/state").then(function(r){return r.json();}).then(function(d){ cur={report:d.report,signature:d.signature};
         out.textContent="GET /state\n\n"+d.headline+"\n\nreport = "+JSON.stringify(d.report,null,2)+"\n\nsignature = "+String(d.signature).slice(0,48)+"…";
-        b2.disabled=false; b3.disabled=false;
-      }).catch(function(){ out.textContent="Could not reach /state — try again."; });
-    });
-    b2.addEventListener("click", function(){
-      if(!cur) return; clr();
-      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cur)})
-        .then(function(r){return r.json();}).then(function(v){ verd(v.valid, v.message); });
-    });
-    b3.addEventListener("click", function(){
-      if(!cur) return; clr();
-      var t=JSON.parse(JSON.stringify(cur.report)); var was=t.reachable; t.reachable=(was||0)+999;
+        b2.disabled=false; b3.disabled=false; }).catch(function(){ out.textContent="Could not reach /state — try again."; }); });
+    b2.addEventListener("click",function(){ if(!cur)return; clr();
+      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cur)}).then(function(r){return r.json();}).then(function(v){ verd(v.valid,v.message); }); });
+    b3.addEventListener("click",function(){ if(!cur)return; clr(); var t=JSON.parse(JSON.stringify(cur.report)); var was=t.reachable; t.reachable=(was||0)+999;
       out.textContent="Tampered: changed report.reachable from "+was+" to "+t.reachable+"\nPosting the altered report with the ORIGINAL signature to /verify …";
-      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({report:t,signature:cur.signature})})
-        .then(function(r){return r.json();}).then(function(v){ verd(v.valid, v.message); });
-    });
-    br.addEventListener("click", function(){
-      clr(); out.textContent="Forcing a live probe (POST /refresh) …";
-      fetch("/refresh",{method:"POST"}).then(function(r){return r.json();}).then(function(d){
-        out.textContent="POST /refresh\nreprobed: "+d.reprobed+"   reachable now: "+d.reachable+"   total: "+d.total;
-        refreshAll();
-      }).catch(function(){ out.textContent="Refresh failed — try again."; });
-    });
+      fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({report:t,signature:cur.signature})}).then(function(r){return r.json();}).then(function(v){ verd(v.valid,v.message); }); });
+    br.addEventListener("click",function(){ clr(); out.textContent="Forcing a live probe (POST /refresh) …";
+      fetch("/refresh",{method:"POST"}).then(function(r){return r.json();}).then(function(d){ out.textContent="POST /refresh\nreprobed: "+d.reprobed+"   reachable now: "+d.reachable+"   total: "+d.total; refreshAll(); }).catch(function(){ out.textContent="Refresh failed — try again."; }); });
   })();
 
-  // --- API explorer: each button opens the live endpoint in a new tab ---
+  // explorer -> new tab
   (function(){
-    function open(ep){ window.open(ep, "_blank", "noopener"); }
-    document.querySelectorAll('.apibar button[data-ep]').forEach(function(b){
-      b.addEventListener("click", function(){ open(b.dataset.ep); });
-    });
+    function open(ep){ window.open(ep,"_blank","noopener"); }
+    document.querySelectorAll('.chipbtn[data-ep]').forEach(function(b){ b.addEventListener("click",function(){ open(b.dataset.ep); }); });
     var ag=document.getElementById("agInput");
-    function name(){ return encodeURIComponent((ag.value||"Skill-Router").trim() || "Skill-Router"); }
-    document.getElementById("agBtn").addEventListener("click", function(){ open("/agent/"+name()); });
-    document.getElementById("badgeBtn").addEventListener("click", function(){ open("/badge/"+name()+".svg"); });
+    function nm(){ return encodeURIComponent((ag.value||"Skill-Router").trim()||"Skill-Router"); }
+    document.getElementById("agBtn").addEventListener("click",function(){ open("/agent/"+nm()); });
+    document.getElementById("badgeBtn").addEventListener("click",function(){ open("/badge/"+nm()+".svg"); });
   })();
+
+  // reveal on scroll
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }); },{threshold:.08});
+    document.querySelectorAll(".reveal").forEach(function(el){ io.observe(el); });
+  } else { document.querySelectorAll(".reveal").forEach(function(el){ el.classList.add("in"); }); }
 
   function refreshAll(){ load(); loadLB(); loadFresh(); loadInc(); }
   refreshAll();
