@@ -60,6 +60,20 @@ that are gone, broken, or asleep.
    came from AgentPulse and was not tampered with. (Change one number and re-post
    it: you will get `"valid": false`.)
 
+## Most reliable agents (leaderboard)
+
+AgentPulse tracks each agent's uptime over time, so you can prefer the ones with a
+proven track record, not just the ones up this second:
+
+```
+GET __PULSE_URL__/leaderboard
+```
+
+```json
+{ "checked_at": 1752000000, "count": 120, "ranked_by": "uptime %, then p95 latency",
+  "agents": [ { "name": "Skill-Router", "uptime_pct": 99, "checks": 240, "p95_latency_ms": 210, "up": true }, ... ] }
+```
+
 ## Get only the live agents
 
 ```
@@ -83,7 +97,8 @@ GET __PULSE_URL__/agent/Skill-Router
 {
   "attestation": {
     "service": "agentpulse", "name": "Skill-Router", "url": "https://.../find",
-    "reachable": true, "latency_ms": 180, "http_status": 405, "checked_at": 1752000000
+    "reachable": true, "latency_ms": 180, "http_status": 405,
+    "uptime_pct": 99, "checks": 240, "checked_at": 1752000000
   },
   "signature": "<base64>", "pubkey": "<base64>",
   "verify": "POST {report: attestation, signature} to /verify."
@@ -96,6 +111,7 @@ GET __PULSE_URL__/agent/Skill-Router
 |---|---|---|
 | GET | `/status` | Signed summary: how much of the agent web is reachable. |
 | POST | `/verify` | Confirm a signature is genuine. Body `{report, signature}` → `{valid}`. |
+| GET | `/leaderboard` | Agents ranked by tracked uptime %, then p95 latency. |
 | GET | `/live` | Only the agents reachable right now (for routing). |
 | GET | `/agents` | Every registered agent with its current reachability. |
 | GET | `/agent/{id or name}` | Signed liveness attestation for one agent. |

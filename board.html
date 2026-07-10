@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentPulse — is the agent web alive?</title>
+<meta name="description" content="Live, signed uptime for every agent in the NANDA registry. See which agents actually answer right now.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%93%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#131c26; --panel-2:#0f1720; --line:#233240;
+    --text:#e8eef4; --muted:#93a6b4; --faint:#5f7280;
+    --up:#3fb96b; --down:#e2604a; --unk:#7c8a97; --accent:#e7a33f;
+    --mono:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;
+    background-image:radial-gradient(circle at 15% -10%, rgba(231,163,63,.08), transparent 40%),radial-gradient(circle at 100% 0%, rgba(63,185,107,.07), transparent 35%)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{padding:56px 0 22px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:clamp(2rem,5.5vw,3.3rem);font-weight:850;letter-spacing:-.03em;margin:12px 0 10px;line-height:1}
+  .sub{color:var(--muted);max-width:640px;font-size:1.08rem}
+  .headline{margin:26px 0 6px;font-family:var(--mono);font-size:clamp(1rem,2.4vw,1.35rem);font-weight:600}
+  .headline b{color:var(--accent)}
+  .meta{font-family:var(--mono);font-size:.78rem;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .dotpulse{width:8px;height:8px;border-radius:50%;background:var(--up);display:inline-block;box-shadow:0 0 0 0 rgba(63,185,107,.6);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,107,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,107,0)}100%{box-shadow:0 0 0 0 rgba(63,185,107,0)}}
+  @media (prefers-reduced-motion: reduce){.dotpulse{animation:none}}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:26px 0 8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .card .n{font-family:var(--mono);font-weight:800;font-size:2.1rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .card .k{color:var(--muted);font-size:.85rem;margin-top:2px}
+  .card.up .n{color:var(--up)} .card.down .n{color:var(--down)} .card.unk .n{color:var(--unk)} .card.total .n{color:var(--text)}
+
+  .bar{display:flex;height:12px;border-radius:7px;overflow:hidden;margin:18px 0 4px;border:1px solid var(--line)}
+  .bar i{display:block;height:100%}
+  .bar .b-up{background:var(--up)} .bar .b-down{background:var(--down)} .bar .b-unk{background:var(--unk)}
+
+  section{padding:26px 0 40px}
+  .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  h2{font-size:1.15rem;margin:0}
+  .filterbtns{display:flex;gap:8px;font-family:var(--mono);font-size:.76rem}
+  .filterbtns button{background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+  .filterbtns button[aria-pressed="true"]{color:var(--text);border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .agent{display:flex;align-items:center;gap:11px;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--unk);border-radius:9px;padding:10px 13px}
+  .agent.up{border-left-color:var(--up)} .agent.down{border-left-color:var(--down)}
+  .agent .dot{width:9px;height:9px;border-radius:50%;background:var(--unk);flex:none}
+  .agent.up .dot{background:var(--up)} .agent.down .dot{background:var(--down)}
+  .agent .nm{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+  .agent .lat{font-family:var(--mono);font-size:.72rem;color:var(--faint);white-space:nowrap}
+  .loading{color:var(--muted);font-family:var(--mono);padding:30px 0}
+  .sub2{font-family:var(--mono);font-size:.74rem;color:var(--faint)}
+  .lb{display:grid;gap:6px}
+  .lbrow{display:grid;grid-template-columns:30px 1fr 130px 78px;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 13px}
+  .lbrow .rank{font-family:var(--mono);font-weight:800;color:var(--faint);font-variant-numeric:tabular-nums}
+  .lbrow.top1 .rank{color:var(--accent)} .lbrow.top2 .rank{color:#c9d3db} .lbrow.top3 .rank{color:#cd8b5a}
+  .lbrow .nm{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;min-width:0}
+  .lbrow .nm .d{width:8px;height:8px;border-radius:50%;background:var(--unk);flex:none}
+  .lbrow.isup .nm .d{background:var(--up)} .lbrow.isdown .nm .d{background:var(--down)}
+  .lbrow .track{height:8px;border-radius:5px;background:var(--panel);overflow:hidden;border:1px solid var(--line)}
+  .lbrow .track i{display:block;height:100%;background:var(--up)}
+  .lbrow .pct{font-family:var(--mono);font-size:.82rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .lbrow .lat2{font-family:var(--mono);font-size:.7rem;color:var(--faint)}
+  @media (max-width:620px){ .lbrow{grid-template-columns:26px 1fr 60px} .lbrow .track{display:none} }
+
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:.85rem;font-family:var(--mono)}
+  footer a{color:var(--accent);text-decoration:none}
+  code{font-family:var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.85em}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">Uptime for the agent web</div>
+      <h1>Agent&#8202;Pulse</h1>
+      <p class="sub">The NANDA registry lists many agents, but you can't tell which ones actually answer. AgentPulse checks every one at its real endpoint, first-hand, and signs the result so you can verify it.</p>
+      <div class="headline" id="headline">Checking the agent web…</div>
+      <div class="meta">
+        <span><span class="dotpulse"></span> live probe</span>
+        <span id="checkedAt">last checked: —</span>
+        <span>signed · verify at <code>/verify</code></span>
+      </div>
+    </header>
+
+    <div class="stats" id="stats">
+      <div class="card total"><div class="n" id="s-total">—</div><div class="k">registered agents</div></div>
+      <div class="card up"><div class="n" id="s-up">—</div><div class="k">reachable now</div></div>
+      <div class="card down"><div class="n" id="s-down">—</div><div class="k">not answering</div></div>
+      <div class="card unk"><div class="n" id="s-unk">—</div><div class="k">no endpoint to check</div></div>
+    </div>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+
+    <section>
+      <div class="row">
+        <h2>Most reliable agents</h2>
+        <span class="sub2">ranked by tracked uptime, then speed</span>
+      </div>
+      <div class="lb" id="lb"><div class="loading">Building the track record…</div></div>
+    </section>
+
+    <section>
+      <div class="row">
+        <h2>Every registered agent</h2>
+        <div class="filterbtns" id="filters">
+          <button data-f="all" aria-pressed="true">all</button>
+          <button data-f="up" aria-pressed="false">reachable</button>
+          <button data-f="down" aria-pressed="false">down</button>
+        </div>
+      </div>
+      <div class="grid" id="grid"><div class="loading">Loading the registry…</div></div>
+    </section>
+
+    <footer>
+      AgentPulse · signed liveness API — <a href="/skill.md">/skill.md</a> · <a href="/status">/status</a> · <a href="/leaderboard">/leaderboard</a> · <a href="/live">/live</a><br>
+      Built by <a href="https://github.com/SwasthikaDev">@SwasthikaDev</a> for the NANDA agent web.
+    </footer>
+  </div>
+
+<script>
+  var ALL = [], filter = "all";
+  function fmtAgo(ts){ if(!ts) return "—"; var s = Math.max(0, Math.floor(Date.now()/1000 - ts));
+    if(s<60) return s+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; return Math.floor(s/3600)+"h ago"; }
+  function render(){
+    var g = document.getElementById("grid");
+    var list = ALL.filter(function(a){ return filter==="all" || (filter==="up"? a.up===true : a.up!==true); });
+    list.sort(function(a,b){ var r=(b.up===true)-(a.up===true); return r || (a.name||"").localeCompare(b.name||""); });
+    if(!list.length){ g.innerHTML = '<div class="loading">No agents in this view.</div>'; return; }
+    g.innerHTML = list.map(function(a){
+      var cls = a.up===true ? "up" : a.up===false ? "down" : "";
+      var lat = a.up===true && a.latency_ms!=null ? (a.latency_ms+"ms") : a.up===false ? "no answer" : "—";
+      var nm = (a.name||"(unnamed)").replace(/</g,"&lt;");
+      return '<div class="agent '+cls+'"><span class="dot"></span><span class="nm" title="'+nm+'">'+nm+'</span><span class="lat">'+lat+'</span></div>';
+    }).join("");
+  }
+  function load(){
+    fetch("/agents").then(function(r){ return r.json(); }).then(function(d){
+      ALL = d.agents || [];
+      document.getElementById("s-total").textContent = d.total;
+      document.getElementById("s-up").textContent = d.reachable;
+      document.getElementById("s-down").textContent = d.unreachable;
+      document.getElementById("s-unk").textContent = d.unverifiable;
+      document.getElementById("checkedAt").textContent = "last checked: " + fmtAgo(d.checked_at);
+      var notReach = d.unreachable + d.unverifiable;
+      var pct = d.total ? Math.round(100*notReach/d.total) : 0;
+      document.getElementById("headline").innerHTML =
+        "<b>"+d.reachable+"</b> of <b>"+d.total+"</b> registered agents are reachable right now — <b>"+pct+"%</b> are not.";
+      var t = d.total||1;
+      document.getElementById("bar").innerHTML =
+        '<i class="b-up" style="width:'+(100*d.reachable/t)+'%"></i>'+
+        '<i class="b-down" style="width:'+(100*d.unreachable/t)+'%"></i>'+
+        '<i class="b-unk" style="width:'+(100*d.unverifiable/t)+'%"></i>';
+      render();
+    }).catch(function(){
+      document.getElementById("grid").innerHTML = '<div class="loading">Warming up the probe… refresh in a few seconds.</div>';
+    });
+  }
+  function loadLB(){
+    fetch("/leaderboard").then(function(r){ return r.json(); }).then(function(d){
+      var el = document.getElementById("lb");
+      var list = (d.agents||[]).slice(0, 15);
+      if(!list.length){ el.innerHTML = '<div class="loading">Track record is still building — check back in a minute.</div>'; return; }
+      el.innerHTML = list.map(function(a, i){
+        var cls = a.up===true ? "isup" : a.up===false ? "isdown" : "";
+        var top = i===0?"top1":i===1?"top2":i===2?"top3":"";
+        var nm = (a.name||"(unnamed)").replace(/</g,"&lt;");
+        var pct = a.uptime_pct==null ? "—" : a.uptime_pct+"%";
+        var w = a.uptime_pct==null ? 0 : a.uptime_pct;
+        var lat = a.p95_latency_ms==null ? "" : ("p95 "+a.p95_latency_ms+"ms");
+        return '<div class="lbrow '+cls+' '+top+'">'+
+          '<span class="rank">'+(i+1)+'</span>'+
+          '<span class="nm"><span class="d"></span>'+nm+'</span>'+
+          '<span class="track"><i style="width:'+w+'%"></i></span>'+
+          '<span class="pct">'+pct+'<div class="lat2">'+lat+'</div></span>'+
+        '</div>';
+      }).join("");
+    }).catch(function(){});
+  }
+  document.getElementById("filters").addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    filter = b.dataset.f;
+    [].forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", x===b); });
+    render();
+  });
+  load(); loadLB();
+  setInterval(function(){ load(); loadLB(); }, 30000);
+</script>
+</body>
+</html>
