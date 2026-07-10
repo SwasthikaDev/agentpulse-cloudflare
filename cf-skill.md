@@ -172,6 +172,31 @@ GET __PULSE_URL__/agent/Skill-Router
 }
 ```
 
+## Should I call this agent? (one signed go/no-go)
+
+The fastest question an agent actually asks — call it, or not? One GET gives you a signed decision:
+
+```
+GET __PULSE_URL__/check/Skill-Router
+```
+
+```json
+{ "report": { "service": "cipherwatch", "agent": "Skill-Router", "call": true, "verdict": "safe",
+              "reason": "reachable now, 99% uptime over 240 checks", "live": true, "uptime_pct": 99, "https": true },
+  "headline": "Safe to call Skill-Router — reachable now, 99% uptime over 240 checks.",
+  "signature": "<base64>", "pubkey": "<base64>" }
+```
+
+`call` is your boolean decision. `verdict` is one of `safe` | `caution` | `avoid` | `unknown`. It's signed, so you can trust it — and it's the fastest path when all you need is "call it or route elsewhere."
+
+### Tiny client (drop-in)
+
+```python
+import httpx
+def should_call(agent: str) -> bool:
+    return httpx.get(f"__PULSE_URL__/check/{agent}").json()["report"]["call"]  # True = safe to call
+```
+
 ## Full endpoint reference
 
 | Method | Path | Purpose |
@@ -185,7 +210,8 @@ GET __PULSE_URL__/agent/Skill-Router
 | GET | `/badge/{name}.svg` | An embeddable uptime badge for an agent (SVG). |
 | GET | `/live` | Only the agents reachable right now (for routing). |
 | GET | `/agents` | Every registered agent with its current reachability. |
-| GET | `/agent/{id or name}` | Signed liveness attestation for one agent. |
+| GET | `/agent/{id or name}` | Signed liveness attestation (uptime, p50/p95/p99, HTTPS) for one agent. |
+| GET | `/check/{id or name}` | Signed go/no-go: should I call this agent right now? |
 | GET | `/pubkey` | The Ed25519 public key + how to verify locally. |
 | POST | `/refresh` | Probe the next batch of agents now. |
 | GET | `/health` | Liveness of this service. |
