@@ -12,6 +12,10 @@ endpoint** first-hand and tells you, with a **signed proof**, which ones respond
 so before you call an agent you can confirm it is alive, and route around the ones
 that are gone, broken, or asleep.
 
+**The two calls agents make most:** `GET /check/{name}` — one signed *yes/no* on whether
+to call an agent right now — and `GET /live` — only the agents that are up, ready to route to.
+Both are documented below; everything else is proof and detail around those two.
+
 ## Why it's different
 
 - **Signed, not trusted.** Every answer carries an Ed25519 signature you can verify
@@ -84,8 +88,9 @@ Each line feeds the next; the last one prints your success signal.
 ```bash
 BASE=__PULSE_URL__
 
-# 1. Signed snapshot of the whole agent web
-curl -s $BASE/state
+# 1. Signed summary of the whole agent web (how much is reachable right now)
+curl -s $BASE/status
+#    (want it all in one signed artifact? curl -s $BASE/state)
 
 # 2. Is one specific agent alive? (a signed attestation)
 curl -s $BASE/agent/Skill-Router
@@ -95,10 +100,53 @@ curl -s $BASE/agent/Skill-Router
 #    those two fields, so you can pipe it straight through — pure curl, nothing else:
 curl -s $BASE/status | curl -s -X POST $BASE/verify -H 'Content-Type: application/json' -d @-
 # Expected: {"valid": true, "algorithm": "Ed25519", "message": "...genuine, unaltered CipherWatch attestation..."}
+
+# If any call above returns an error, it is JSON with a "fix" field telling you the
+# exact next call to make — read "fix" and follow it; no guessing needed.
 ```
 
 **You have succeeded when step 3 prints `"valid": true`.** To see the proof is real,
 change any number in the report before posting it and step 3 will print `"valid": false`.
+
+## Should I call this agent? (one signed go/no-go)
+
+The fastest question an agent actually asks — call it, or not? One GET gives you a signed decision:
+
+```
+GET __PULSE_URL__/check/Skill-Router
+```
+
+```json
+{ "report": { "service": "cipherwatch", "agent": "Skill-Router", "call": true, "verdict": "reachable",
+              "reason": "reachable now, 99% uptime over 240 checks",
+              "means": "reachability, not application-level safety",
+              "live": true, "uptime_pct": 99, "https": true },
+  "headline": "Reachable: Skill-Router — reachable now, 99% uptime over 240 checks.",
+  "signature": "<base64>", "pubkey": "<base64>" }
+```
+
+`call` is your boolean decision: is the agent **callable right now**? `verdict` is one of `reachable` | `flaky` | `unreachable` | `unknown`. Note `means`: this is a *reachability* signal (the endpoint answers), not a judgment of what the agent will *do* — pair it with an application-level safety check if you need one. It's signed, and it's the fastest path when all you need is "dial it or route elsewhere."
+
+### Tiny client (drop-in)
+
+```python
+import httpx
+def should_call(agent: str) -> bool:
+    return httpx.get(f"__PULSE_URL__/check/{agent}").json()["report"]["call"]  # True = reachable right now
+```
+
+## Get only the live agents
+
+When you have candidate agents and want to route to only the ones that are up right now:
+
+```
+GET __PULSE_URL__/live
+```
+
+```json
+{ "count": 115, "checked_at": 1752000000,
+  "agents": [ { "name": "Skill-Router", "url": "https://...", "latency_ms": 180 }, ... ] }
+```
 
 ## Most reliable agents (leaderboard)
 
@@ -141,17 +189,6 @@ GET __PULSE_URL__/badge/Skill-Router.svg
 
 Returns an SVG badge ("CipherWatch | 99% uptime") you can drop into any README or agent card.
 
-## Get only the live agents
-
-```
-GET __PULSE_URL__/live
-```
-
-```json
-{ "count": 115, "checked_at": 1752000000,
-  "agents": [ { "name": "Skill-Router", "url": "https://...", "latency_ms": 180 }, ... ] }
-```
-
 ## Check one specific agent
 
 Pass an agent's **name or id** (as in the registry):
@@ -170,33 +207,6 @@ GET __PULSE_URL__/agent/Skill-Router
   "signature": "<base64>", "pubkey": "<base64>",
   "verify": "POST {report: attestation, signature} to /verify."
 }
-```
-
-## Should I call this agent? (one signed go/no-go)
-
-The fastest question an agent actually asks — call it, or not? One GET gives you a signed decision:
-
-```
-GET __PULSE_URL__/check/Skill-Router
-```
-
-```json
-{ "report": { "service": "cipherwatch", "agent": "Skill-Router", "call": true, "verdict": "reachable",
-              "reason": "reachable now, 99% uptime over 240 checks",
-              "means": "reachability, not application-level safety",
-              "live": true, "uptime_pct": 99, "https": true },
-  "headline": "Reachable: Skill-Router — reachable now, 99% uptime over 240 checks.",
-  "signature": "<base64>", "pubkey": "<base64>" }
-```
-
-`call` is your boolean decision: is the agent **callable right now**? `verdict` is one of `reachable` | `flaky` | `unreachable` | `unknown`. Note `means`: this is a *reachability* signal (the endpoint answers), not a judgment of what the agent will *do* — pair it with an application-level safety check if you need one. It's signed, and it's the fastest path when all you need is "dial it or route elsewhere."
-
-### Tiny client (drop-in)
-
-```python
-import httpx
-def should_call(agent: str) -> bool:
-    return httpx.get(f"__PULSE_URL__/check/{agent}").json()["report"]["call"]  # True = safe to call
 ```
 
 ## Full endpoint reference
