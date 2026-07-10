@@ -181,13 +181,15 @@ GET __PULSE_URL__/check/Skill-Router
 ```
 
 ```json
-{ "report": { "service": "cipherwatch", "agent": "Skill-Router", "call": true, "verdict": "safe",
-              "reason": "reachable now, 99% uptime over 240 checks", "live": true, "uptime_pct": 99, "https": true },
-  "headline": "Safe to call Skill-Router — reachable now, 99% uptime over 240 checks.",
+{ "report": { "service": "cipherwatch", "agent": "Skill-Router", "call": true, "verdict": "reachable",
+              "reason": "reachable now, 99% uptime over 240 checks",
+              "means": "reachability, not application-level safety",
+              "live": true, "uptime_pct": 99, "https": true },
+  "headline": "Reachable: Skill-Router — reachable now, 99% uptime over 240 checks.",
   "signature": "<base64>", "pubkey": "<base64>" }
 ```
 
-`call` is your boolean decision. `verdict` is one of `safe` | `caution` | `avoid` | `unknown`. It's signed, so you can trust it — and it's the fastest path when all you need is "call it or route elsewhere."
+`call` is your boolean decision: is the agent **callable right now**? `verdict` is one of `reachable` | `flaky` | `unreachable` | `unknown`. Note `means`: this is a *reachability* signal (the endpoint answers), not a judgment of what the agent will *do* — pair it with an application-level safety check if you need one. It's signed, and it's the fastest path when all you need is "dial it or route elsewhere."
 
 ### Tiny client (drop-in)
 
@@ -240,8 +242,6 @@ Every error is JSON that tells you exactly how to fix the call, so a near-miss b
 - Unknown agent → `404 {"error":"agent_not_found","fix":"GET /agents to list names, or /live for reachable ones."}`
 - Malformed `/verify` body → `400 {"valid":false,"message":"Body must be JSON: {report, signature}."}`
 - Unknown route → `404 {"error":"route_not_found","fix":"Valid routes: GET /status, POST /verify, ..."}`
-
-There is no auth and there are no rate limits, so those error classes never occur.
 
 ## Notes
 

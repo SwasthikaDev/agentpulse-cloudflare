@@ -436,8 +436,8 @@
   function agVerdict(a){
     if(a.up===false) return {c:"down",t:"down"};
     if(a.up===null) return {c:"unknown",t:"no ep"};
-    if(a.uptime_pct!=null && a.uptime_pct<80) return {c:"caution",t:"caution"};
-    return {c:"safe",t:"safe"};
+    if(a.uptime_pct!=null && a.uptime_pct<80) return {c:"caution",t:"flaky"};
+    return {c:"safe",t:"reachable"};
   }
   function spark(hist){
     if(!hist||!hist.length) return '<span class="spark"></span>';
