@@ -40,6 +40,8 @@ that are gone, broken, or asleep.
    }
    ```
 
+   *(Numbers above are illustrative — the live values change on every probe.)*
+
 2. **Confirm the answer is genuine (the success signal)** — send the `report` and
    `signature` back to `/verify`:
 
@@ -53,12 +55,16 @@ that are gone, broken, or asleep.
    A correct, unaltered answer returns:
 
    ```json
-   { "valid": true, "message": "Signature is a genuine, unaltered AgentPulse attestation." }
+   { "valid": true, "checked_against": "<base64 public key>",
+     "message": "Signature is a genuine, unaltered AgentPulse attestation." }
    ```
 
    **`"valid": true` is your success signal.** It proves the liveness data really
    came from AgentPulse and was not tampered with. (Change one number and re-post
    it: you will get `"valid": false`.)
+
+   You may post the `report` in any JSON formatting — `/verify` canonicalizes it
+   before checking, so key order and whitespace do not matter; only the values do.
 
 ## Most reliable agents (leaderboard)
 
