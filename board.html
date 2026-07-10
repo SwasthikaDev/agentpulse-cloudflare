@@ -144,7 +144,7 @@
     <section>
       <div class="row">
         <h2>Explore the API</h2>
-        <span class="sub2">click any endpoint to see its live response</span>
+        <span class="sub2">each button opens the live endpoint in a new tab</span>
       </div>
       <div class="apibar">
         <button type="button" data-ep="/state">/state</button>
@@ -164,8 +164,6 @@
         <button type="button" id="badgeBtn">/badge/{name}.svg</button>
         <span class="sub2">try any agent name from the leaderboard below</span>
       </div>
-      <div id="apiimg" class="apiimg" hidden></div>
-      <pre id="apiout" class="tryout">Click an endpoint above to see its live response.</pre>
     </section>
 
     <section>
@@ -325,31 +323,16 @@
     });
   })();
 
-  // --- API explorer: click an endpoint, see its live response ---
+  // --- API explorer: each button opens the live endpoint in a new tab ---
   (function(){
-    var out=document.getElementById("apiout"), img=document.getElementById("apiimg");
-    function asJSON(ep){
-      img.hidden=true; out.hidden=false; out.textContent="GET "+ep+" …";
-      fetch(ep).then(function(r){return r.text();}).then(function(t){
-        try{ out.textContent="GET "+ep+"\n\n"+JSON.stringify(JSON.parse(t),null,2); }
-        catch(e){ out.textContent="GET "+ep+"\n\n"+t; }
-      }).catch(function(){ out.textContent="Could not reach "+ep+" — try again."; });
-    }
-    function asText(ep){
-      img.hidden=true; out.hidden=false; out.textContent="GET "+ep+" …";
-      fetch(ep).then(function(r){return r.text();}).then(function(t){ out.textContent=t; }).catch(function(){ out.textContent="Could not reach "+ep; });
-    }
-    function asImg(ep){
-      out.hidden=true; img.hidden=false;
-      img.innerHTML='<div class="sub2" style="margin-bottom:8px">GET '+ep+'</div><img src="'+ep+'" alt="uptime badge" style="height:22px;display:block">';
-    }
+    function open(ep){ window.open(ep, "_blank", "noopener"); }
     document.querySelectorAll('.apibar button[data-ep]').forEach(function(b){
-      b.addEventListener("click", function(){ b.dataset.kind==="text" ? asText(b.dataset.ep) : asJSON(b.dataset.ep); });
+      b.addEventListener("click", function(){ open(b.dataset.ep); });
     });
     var ag=document.getElementById("agInput");
     function name(){ return encodeURIComponent((ag.value||"Skill-Router").trim() || "Skill-Router"); }
-    document.getElementById("agBtn").addEventListener("click", function(){ asJSON("/agent/"+name()); });
-    document.getElementById("badgeBtn").addEventListener("click", function(){ asImg("/badge/"+name()+".svg"); });
+    document.getElementById("agBtn").addEventListener("click", function(){ open("/agent/"+name()); });
+    document.getElementById("badgeBtn").addEventListener("click", function(){ open("/badge/"+name()+".svg"); });
   })();
 
   function refreshAll(){ load(); loadLB(); loadFresh(); loadInc(); }
