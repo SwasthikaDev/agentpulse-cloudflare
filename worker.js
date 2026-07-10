@@ -440,6 +440,67 @@ function hPubkey(env) {
     verify: "signature = Ed25519 over json.dumps(report, sort_keys=True, separators=(',', ':')); check the base64 signature against this key.",
   });
 }
+function agentFacts(env, origin) {
+  // NANDA-style discovery document
+  return {
+    name: "AgentPulse",
+    description: "Signed, real-time liveness and uptime oracle for agents in the NANDA registry.",
+    url: origin,
+    documentation: origin + "/skill.md",
+    openapi: origin + "/openapi.json",
+    version: "1.0.0",
+    provider: { name: "SwasthikaDev", url: "https://github.com/SwasthikaDev" },
+    auth: "none",
+    capabilities: ["liveness", "uptime-history", "reliability-ranking", "registry-audit", "signed-attestation", "incident-tracking"],
+    signing: { algorithm: "Ed25519", public_key: env.PULSE_PUBLIC_KEY, verify_endpoint: origin + "/verify" },
+    endpoints: [
+      { method: "GET", path: "/state", purpose: "signed whole-web summary" },
+      { method: "GET", path: "/status", purpose: "signed reachability summary" },
+      { method: "POST", path: "/verify", purpose: "confirm a signature" },
+      { method: "GET", path: "/leaderboard", purpose: "agents ranked by uptime" },
+      { method: "GET", path: "/compare", purpose: "where the registry is wrong" },
+      { method: "GET", path: "/live", purpose: "only reachable agents" },
+      { method: "GET", path: "/agent/{id|name}", purpose: "signed per-agent attestation" },
+    ],
+  };
+}
+function openapiSpec(origin) {
+  const signed = {
+    type: "object",
+    properties: { report: { type: "object" }, headline: { type: "string" }, signature: { type: "string" }, pubkey: { type: "string" } },
+  };
+  const get = (summary, schema) => ({ get: { summary, responses: { 200: { description: "OK", content: { "application/json": { schema: schema || { type: "object" } } } } } } });
+  return {
+    openapi: "3.0.3",
+    info: { title: "AgentPulse", version: "1.0.0", description: "Signed liveness and uptime for agents in the NANDA registry." },
+    servers: [{ url: origin }],
+    paths: {
+      "/state": get("Signed whole-web summary", signed),
+      "/status": get("Signed reachability summary", signed),
+      "/leaderboard": get("Agents ranked by tracked uptime"),
+      "/compare": get("Where our probe disagrees with the registry", signed),
+      "/incidents": get("Recent up/down state changes"),
+      "/live": get("Only agents reachable right now"),
+      "/agents": get("Every registered agent with reachability"),
+      "/agent/{key}": {
+        get: {
+          summary: "Signed liveness attestation for one agent",
+          parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" }, description: "agent id or name" }],
+          responses: { 200: { description: "OK" }, 404: { description: "Not found" } },
+        },
+      },
+      "/pubkey": get("Ed25519 public key"),
+      "/health": get("Service health"),
+      "/verify": {
+        post: {
+          summary: "Confirm a signature is genuine",
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { report: { type: "object" }, signature: { type: "string" } }, required: ["report", "signature"] } } } },
+          responses: { 200: { description: "OK", content: { "application/json": { schema: { type: "object", properties: { valid: { type: "boolean" } } } } } } },
+        },
+      },
+    },
+  };
+}
 
 // ---------- worker entrypoints ----------
 export default {
@@ -450,6 +511,8 @@ export default {
     try {
       if (method === "GET" && p === "/") return html(b64ToUtf8(BOARD_B64));
       if (p === "/skill.md" || p === "/SKILL.md") return text(b64ToUtf8(SKILL_B64).replace(/__PULSE_URL__/g, url.origin));
+      if (p.endsWith("agent-facts.json") || p === "/.well-known/agent-facts.json") return json(agentFacts(env, url.origin));
+      if (p === "/openapi.json") return json(openapiSpec(url.origin));
       if (p === "/health") {
         const v = await view(env);
         return json({ status: "ok", service: "agentpulse", host: "cloudflare-workers", agents_indexed: v.counts.total, checked_at: v.checked_at });
