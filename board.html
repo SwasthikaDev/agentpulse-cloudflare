@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgentPulse — uptime for the agent web</title>
+<title>CipherWatch — uptime for the agent web</title>
 <meta name="description" content="Live, signed uptime for every agent in the NANDA registry.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%93%3C/text%3E%3C/svg%3E">
 <style>
@@ -177,7 +177,7 @@
       <span class="mk">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M2 12h5l2-6 4 12 2-6h7" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
-      AgentPulse
+      CipherWatch
     </span>
     <span class="spacer"></span>
     <a class="navlink" href="#reliable">Leaderboard</a>
@@ -191,8 +191,8 @@
 
   <header class="hero">
     <div class="eyebrow">Uptime for the agent web</div>
-    <h1><span class="g">AgentPulse</span></h1>
-    <p class="tag">The NANDA registry lists many agents, but you can't tell which ones actually answer. AgentPulse checks every one at its real endpoint, <b>first-hand</b>, and <b>signs</b> the result so you can verify it.</p>
+    <h1><span class="g">CipherWatch</span></h1>
+    <p class="tag">The NANDA registry lists many agents, but you can't tell which ones actually answer. CipherWatch checks every one at its real endpoint, <b>first-hand</b>, and <b>signs</b> the result so you can verify it.</p>
 
     <div class="ekg" aria-hidden="true">
       <svg viewBox="0 0 400 80" preserveAspectRatio="none">
@@ -235,7 +235,7 @@
   </section>
 
   <section id="verify" class="reveal">
-    <div class="shead"><h2>Verify it yourself</h2><span class="sub">no terminal needed — click through the cryptographic proof</span></div>
+    <div class="shead"><h2>Verify it yourself</h2><span class="sub">no terminal needed — verify a live signed report (the whole-web summary) with Ed25519</span></div>
     <div class="panel">
       <div class="btnrow">
         <button class="btn" id="b1" type="button">1 · Fetch a signed report</button>
@@ -243,7 +243,7 @@
         <button class="btn ghost" id="b3" type="button" disabled>3 · Tamper &amp; re-verify</button>
         <button class="btn ghost spacerL" id="brefresh" type="button">↻ Force a live probe</button>
       </div>
-      <pre class="out" id="tryout">Click “Fetch a signed report” to pull a live, signed snapshot from AgentPulse.</pre>
+      <pre class="out" id="tryout">Click “Fetch a signed report” to pull a live, signed snapshot from CipherWatch.</pre>
       <div class="verdict" id="tryverdict" hidden></div>
     </div>
   </section>
@@ -284,7 +284,7 @@
   </div>
 
   <footer>
-    <div class="badge"><img src="/badge/agentpulse.svg" alt="AgentPulse: live"> &nbsp;<span class="muted">held to the same standard we hold everyone else.</span></div>
+    <div class="badge"><img src="/badge/cipherwatch.svg" alt="CipherWatch: live"> &nbsp;<span class="muted">held to the same standard we hold everyone else.</span></div>
     <div>Independently monitoring every agent in the NANDA registry, signed at Cloudflare's edge.</div>
     <div class="flinks"><a href="/skill.md">/skill.md</a> · <a href="/state">/state</a> · <a href="/leaderboard">/leaderboard</a> · <a href="/compare">/compare</a> · <a href="/incidents">/incidents</a></div>
     <div style="margin-top:12px">Built by <a href="https://github.com/SwasthikaDev">@SwasthikaDev</a> for the NANDA agent web.</div>
@@ -333,7 +333,7 @@
       var r=d.report||{}, el=document.getElementById("fresh"), down=r.registry_says_up_but_down||0, missed=r.registry_missed_live||0;
       if(down===0&&missed===0){ el.hidden=true; return; }
       el.hidden=false;
-      document.getElementById("freshtext").innerHTML="The registry lists <b>"+(r.registry_reachable||0)+"</b> agents as reachable — but <b>"+down+"</b> of those are actually down"+(missed?", and it misses <b>"+missed+"</b> live ones":"")+". AgentPulse probes them fresh.";
+      document.getElementById("freshtext").innerHTML="The registry lists <b>"+(r.registry_reachable||0)+"</b> agents as reachable — but <b>"+down+"</b> of those are actually down"+(missed?", and it misses <b>"+missed+"</b> live ones":"")+". CipherWatch probes them fresh.";
     }).catch(function(){});
   }
   function loadInc(){
@@ -355,7 +355,7 @@
     function clr(){ verdict.hidden=true; }
     b1.addEventListener("click",function(){ clr(); out.textContent="Fetching a signed report from /state …";
       fetch("/state").then(function(r){return r.json();}).then(function(d){ cur={report:d.report,signature:d.signature};
-        out.textContent="GET /state\n\n"+d.headline+"\n\nreport = "+JSON.stringify(d.report,null,2)+"\n\nsignature = "+String(d.signature).slice(0,48)+"…";
+        out.textContent="GET /state  — a signed summary of the WHOLE agent web (not one agent)\n\n"+d.headline+"\n\nreport = "+JSON.stringify(d.report,null,2)+"\n\nEd25519 signature = "+String(d.signature)+"\npublic key = "+String(d.pubkey||"");
         b2.disabled=false; b3.disabled=false; }).catch(function(){ out.textContent="Could not reach /state — try again."; }); });
     b2.addEventListener("click",function(){ if(!cur)return; clr();
       fetch("/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cur)}).then(function(r){return r.json();}).then(function(v){ verd(v.valid,v.message); }); });

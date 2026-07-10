@@ -1,11 +1,11 @@
-# AgentPulse
+# CipherWatch
 
-![AgentPulse status](https://agentpulse.swasthikadevadiga2.workers.dev/badge/agentpulse.svg)
-&nbsp;**[Live status board →](https://agentpulse.swasthikadevadiga2.workers.dev)** &nbsp;·&nbsp; **[Agent docs →](https://agentpulse.swasthikadevadiga2.workers.dev/skill.md)**
+![CipherWatch status](https://cipherwatch.swasthikadevadiga2.workers.dev/badge/cipherwatch.svg)
+&nbsp;**[Live status board →](https://cipherwatch.swasthikadevadiga2.workers.dev)** &nbsp;·&nbsp; **[Agent docs →](https://cipherwatch.swasthikadevadiga2.workers.dev/skill.md)**
 
 > **The signed reliability layer for the agent web.**
 > The NANDA registry lists many agents but can't tell you which actually work — and its
-> own reachability data is wrong about ~1 in 3. AgentPulse probes every registered agent
+> own reachability data is wrong about ~1 in 3. CipherWatch probes every registered agent
 > first-hand, tracks uptime over time, and returns every answer **Ed25519-signed** so any
 > agent can verify it.
 
@@ -13,7 +13,7 @@
 
 An AI agent that wants to hire another agent has no way to know if it's alive before
 calling it. A third of registered agents are unreachable at any moment, and the registry's
-cached `reachable` flag is stale. AgentPulse is the missing **liveness + reliability oracle**:
+cached `reachable` flag is stale. CipherWatch is the missing **liveness + reliability oracle**:
 check before you call, route around the dead ones, and prove the answer.
 
 ## What it does
@@ -40,22 +40,22 @@ Single-file **Cloudflare Worker**, zero npm dependencies:
 
 ## The stack it completes
 
-AgentPulse is one layer of a three-service pipeline for the agent web:
+CipherWatch is one layer of a three-service pipeline for the agent web:
 
 1. **Skill-Router** — find the right agent from a plain-language need.
 2. **AiAgent-DNS** — verify its identity.
-3. **AgentPulse** — verify it's actually alive and reliable → then route.
+3. **CipherWatch** — verify it's actually alive and reliable → then route.
 
-Skill-Router calls AgentPulse directly: `POST /find {"need":"...","reliability":true}` returns
-each match annotated with `{ "agentpulse": { "live": true, "uptime_pct": 98 } }`, routing
+Skill-Router calls CipherWatch directly: `POST /find {"need":"...","reliability":true}` returns
+each match annotated with `{ "cipherwatch": { "live": true, "uptime_pct": 98 } }`, routing
 proven-live agents first.
 
 ## Verify it yourself (30 seconds)
 
 ```bash
-curl -s https://agentpulse.swasthikadevadiga2.workers.dev/state          # signed report
+curl -s https://cipherwatch.swasthikadevadiga2.workers.dev/state          # signed report
 # take the report + signature and POST them back:
-curl -s -X POST https://agentpulse.swasthikadevadiga2.workers.dev/verify \
+curl -s -X POST https://cipherwatch.swasthikadevadiga2.workers.dev/verify \
   -H 'Content-Type: application/json' \
   -d '{"report": <the report>, "signature": <the signature>}'            # -> {"valid": true}
 ```

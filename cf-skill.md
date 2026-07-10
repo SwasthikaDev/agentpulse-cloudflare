@@ -1,12 +1,13 @@
-# AgentPulse — uptime for the agent web
+# CipherWatch — uptime for the agent web
 
 **Base URL:** `__PULSE_URL__`
-**Auth:** none. **Content-Type:** JSON. Every answer is Ed25519-signed so you can verify it.
+**Auth:** none. **Content-Type:** JSON.
+**Cryptography:** every answer is signed with **Ed25519** (RFC 8032) — the *Cipher* in CipherWatch — so you can verify it yourself against the public key at `/pubkey`.
 
 ## What this does (one line)
 
 The NANDA registry lists many agents, but it does not tell you which ones are
-actually working right now. AgentPulse probes every registered agent's **real
+actually working right now. CipherWatch probes every registered agent's **real
 endpoint** first-hand and tells you, with a **signed proof**, which ones respond —
 so before you call an agent you can confirm it is alive, and route around the ones
 that are gone, broken, or asleep.
@@ -40,7 +41,7 @@ that are gone, broken, or asleep.
    ```json
    {
      "report": {
-       "service": "agentpulse", "checked_at": 1752000000,
+       "service": "cipherwatch", "checked_at": 1752000000,
        "total": 131, "reachable": 115, "unreachable": 12, "unverifiable": 4
      },
      "headline": "115 of 131 registered agents are reachable right now; 12% are not.",
@@ -66,11 +67,11 @@ that are gone, broken, or asleep.
 
    ```json
    { "valid": true, "checked_against": "<base64 public key>",
-     "message": "Signature is a genuine, unaltered AgentPulse attestation." }
+     "message": "Signature is a genuine, unaltered CipherWatch attestation." }
    ```
 
    **`"valid": true` is your success signal.** It proves the liveness data really
-   came from AgentPulse and was not tampered with. (Change one number and re-post
+   came from CipherWatch and was not tampered with. (Change one number and re-post
    it: you will get `"valid": false`.)
 
    You may post the `report` in any JSON formatting — `/verify` canonicalizes it
@@ -93,7 +94,7 @@ curl -s $BASE/agent/Skill-Router
 curl -s $BASE/status \
   | python3 -c "import sys,json;d=json.load(sys.stdin);print(json.dumps({'report':d['report'],'signature':d['signature']}))" \
   | curl -s -X POST $BASE/verify -H 'Content-Type: application/json' -d @-
-# Expected: {"valid": true, "message": "Signature is a genuine, unaltered AgentPulse attestation."}
+# Expected: {"valid": true, "message": "Signature is a genuine, unaltered CipherWatch attestation."}
 ```
 
 **You have succeeded when step 3 prints `"valid": true`.** To see the proof is real,
@@ -101,7 +102,7 @@ change any number in the report before posting it and step 3 will print `"valid"
 
 ## Most reliable agents (leaderboard)
 
-AgentPulse tracks each agent's uptime over time, so you can prefer the ones with a
+CipherWatch tracks each agent's uptime over time, so you can prefer the ones with a
 proven track record, not just the ones up this second:
 
 ```
@@ -115,7 +116,7 @@ GET __PULSE_URL__/leaderboard
 
 ## Does the registry agree? (freshness)
 
-The registry keeps its own `reachable` flag, but it goes stale. AgentPulse probes
+The registry keeps its own `reachable` flag, but it goes stale. CipherWatch probes
 fresh and shows the gap:
 
 ```
@@ -138,7 +139,7 @@ Use `/compare` when you want the freshest possible picture, not the registry's c
 GET __PULSE_URL__/badge/Skill-Router.svg
 ```
 
-Returns an SVG badge ("AgentPulse | 99% uptime") you can drop into any README or agent card.
+Returns an SVG badge ("CipherWatch | 99% uptime") you can drop into any README or agent card.
 
 ## Get only the live agents
 
@@ -162,7 +163,7 @@ GET __PULSE_URL__/agent/Skill-Router
 ```json
 {
   "attestation": {
-    "service": "agentpulse", "name": "Skill-Router", "url": "https://.../find",
+    "service": "cipherwatch", "name": "Skill-Router", "url": "https://.../find",
     "reachable": true, "latency_ms": 180, "http_status": 405,
     "uptime_pct": 99, "checks": 240, "checked_at": 1752000000
   },
@@ -192,7 +193,7 @@ GET __PULSE_URL__/agent/Skill-Router
 
 ## How reachability is decided
 
-AgentPulse makes one GET to each agent's declared endpoint and classifies it the
+CipherWatch makes one GET to each agent's declared endpoint and classifies it the
 way a real uptime monitor would:
 
 - **reachable** — `2xx`/`3xx`, or `401`/`403`/`405` (it is there; may need auth or a POST)

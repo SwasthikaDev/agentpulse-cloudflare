@@ -1,4 +1,4 @@
-name = "agentpulse"
+name = "cipherwatch"
 main = "worker.js"
 compatibility_date = "2025-01-15"
 account_id = "41fbf323bc0c1be830080e1c3bbfdf14"
