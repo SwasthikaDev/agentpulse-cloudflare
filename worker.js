@@ -477,13 +477,16 @@ async function hCheck(env, key) {
   });
 }
 async function hVerify(env, request) {
-  let body;
+  let body = null;
   try {
     body = await request.json();
   } catch (e) {
+    body = null;
+  }
+  if (!body || typeof body !== "object" || !body.report || typeof body.signature !== "string") {
     return json({ valid: false, message: "Body must be JSON: {report, signature}." }, 400);
   }
-  const ok = body && body.report && typeof body.signature === "string" ? await verifySig(env, body.report, body.signature) : false;
+  const ok = await verifySig(env, body.report, body.signature);
   return json({
     valid: ok,
     algorithm: "Ed25519",
